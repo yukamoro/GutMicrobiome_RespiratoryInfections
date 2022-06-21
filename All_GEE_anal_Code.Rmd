@@ -1,0 +1,3405 @@
+---
+title: "The relationship between the gut microbiome and the risk of respiratory infections among newborns: code"
+author: "Yuka Moroishi"
+output: html_document
+---
+
+#Load Data
+```{r}
+#Metadata
+metadata_aim2 = read.csv("FILE_DIRECTORY", na.strings=c("", "NA"))
+
+#Linkage info
+mblid_linkage = read.csv("FILE_DIRECTORY")
+
+#16S 6w dada2 processed samples
+setwd("FILE_DIRECTORY")
+stool_16s_6w = readRDS("FILE_DIRECTORY")
+
+#Silva database
+silva = readRDS("FILE_DIRECTORY")
+
+#Metagenomics species
+species_level_metagen = read.table("FILE_DIRECTORY", header = TRUE, row.names = 1)
+
+```
+
+#Data Cleaning: metadata
+```{r}
+
+###4mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I4RunnyNose[i]) & metadata_aim2$I4RunnyNose[i]==0){
+    metadata_aim2$I4RunnyNoseGt2D[i] = 0
+    metadata_aim2$I4RunnyNoseDoc[i] = 0
+    metadata_aim2$I4RunnyNoseRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4EyeInf[i]) & metadata_aim2$I4EyeInf[i]==0){
+    metadata_aim2$I4EyeInfGt2D[i] = 0
+    metadata_aim2$I4EyeInfDoc[i] = 0
+    metadata_aim2$I4EyeInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4EarInf[i]) & metadata_aim2$I4EarInf[i]==0){
+    metadata_aim2$I4EarInfGt2D[i] = 0
+    metadata_aim2$I4EarInfDoc[i] = 0
+    metadata_aim2$I4EarInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4SevFlu[i]) & metadata_aim2$I4SevFlu[i]==0){
+    metadata_aim2$I4SevFluGt2D[i] = 0
+    metadata_aim2$I4SevFluDoc[i] = 0
+    metadata_aim2$I4SevFluRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4SinusInf[i]) & metadata_aim2$I4SinusInf[i]==0){
+    metadata_aim2$I4SinusInfGt2D[i] = 0
+    metadata_aim2$I4SinusInfDoc[i] = 0
+    metadata_aim2$I4SinusInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4StrepThrt[i]) & metadata_aim2$I4StrepThrt[i]==0){
+    metadata_aim2$I4StrepThrtGt2D[i] = 0
+    metadata_aim2$I4StrepThrtDoc[i] = 0
+    metadata_aim2$I4StrepThrtRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4Laryngitis[i]) & metadata_aim2$I4Laryngitis[i]==0){
+    metadata_aim2$I4LaryngitisGt2D[i] = 0
+    metadata_aim2$I4LaryngitisDoc[i] = 0
+    metadata_aim2$I4LaryngitisRxMed[i] = 0
+  }
+}
+
+upres_nonna = which(!is.na(metadata_aim2$UpRes4mo))
+
+
+
+metadata_aim2$UpRes4mo = ifelse(rowSums(metadata_aim2[c("I4RunnyNose", "I4EyeInf", "I4EarInf", "I4SevFlu","I4SinusInf","I4StrepThrt","I4Laryngitis")])>0,1,0)
+
+metadata_aim2$UpRes4motot = rowSums(metadata_aim2[c("I4RunnyNose", "I4EyeInf", "I4EarInf", "I4SevFlu","I4SinusInf","I4StrepThrt","I4Laryngitis")])
+
+metadata_aim2$UpRes2Days4mo = ifelse(rowSums(metadata_aim2[c("I4RunnyNoseGt2D", "I4EyeInfGt2D", "I4EarInfGt2D", "I4SevFluGt2D","I4SinusInfGt2D","I4StrepThrtGt2D","I4LaryngitisGt2D")])>0,1,0)
+metadata_aim2$UpRes2Days4motot = rowSums(metadata_aim2[c("I4RunnyNoseGt2D", "I4EyeInfGt2D", "I4EarInfGt2D", "I4SevFluGt2D","I4SinusInfGt2D","I4StrepThrtGt2D","I4LaryngitisGt2D")])
+
+metadata_aim2$UpResDoc4mo = ifelse(rowSums(metadata_aim2[c("I4RunnyNoseDoc", "I4EyeInfDoc", "I4EarInfDoc", "I4SevFluDoc","I4SinusInfDoc","I4StrepThrtDoc","I4LaryngitisDoc")])>0,1,0)
+
+metadata_aim2$UpResDoc4motot = rowSums(metadata_aim2[c("I4RunnyNoseDoc", "I4EyeInfDoc", "I4EarInfDoc", "I4SevFluDoc","I4SinusInfDoc","I4StrepThrtDoc","I4LaryngitisDoc")])
+
+metadata_aim2$UpResRxMed4mo = ifelse(rowSums(metadata_aim2[c("I4RunnyNoseRxMed", "I4EyeInfRxMed", "I4EarInfRxMed", "I4SevFluRxMed","I4SinusInfRxMed","I4StrepThrtRxMed","I4LaryngitisRxMed")])>0,1,0)
+
+metadata_aim2$UpResRxMed4motot = rowSums(metadata_aim2[c("I4RunnyNoseRxMed", "I4EyeInfRxMed", "I4EarInfRxMed", "I4SevFluRxMed","I4SinusInfRxMed","I4StrepThrtRxMed","I4LaryngitisRxMed")])
+
+###8mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I8RunnyNose[i]) & metadata_aim2$I8RunnyNose[i]==0){
+    metadata_aim2$I8RunnyNoseGt2D[i] = 0
+    metadata_aim2$I8RunnyNoseDoc[i] = 0
+    metadata_aim2$I8RunnyNoseRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8EyeInf[i]) & metadata_aim2$I8EyeInf[i]==0){
+    metadata_aim2$I8EyeInfGt2D[i] = 0
+    metadata_aim2$I8EyeInfDoc[i] = 0
+    metadata_aim2$I8EyeInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8EarInf[i]) & metadata_aim2$I8EarInf[i]==0){
+    metadata_aim2$I8EarInfGt2D[i] = 0
+    metadata_aim2$I8EarInfDoc[i] = 0
+    metadata_aim2$I8EarInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8SevFlu[i]) & metadata_aim2$I8SevFlu[i]==0){
+    metadata_aim2$I8SevFluGt2D[i] = 0
+    metadata_aim2$I8SevFluDoc[i] = 0
+    metadata_aim2$I8SevFluRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8SinusInf[i]) & metadata_aim2$I8SinusInf[i]==0){
+    metadata_aim2$I8SinusInfGt2D[i] = 0
+    metadata_aim2$I8SinusInfDoc[i] = 0
+    metadata_aim2$I8SinusInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8StrepThrt[i]) & metadata_aim2$I8StrepThrt[i]==0){
+    metadata_aim2$I8StrepThrtGt2D[i] = 0
+    metadata_aim2$I8StrepThrtDoc[i] = 0
+    metadata_aim2$I8StrepThrtRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8Laryngitis[i]) & metadata_aim2$I8Laryngitis[i]==0){
+    metadata_aim2$I8LaryngitisGt2D[i] = 0
+    metadata_aim2$I8LaryngitisDoc[i] = 0
+    metadata_aim2$I8LaryngitisRxMed[i] = 0
+  }
+}
+
+upres_nonna = which(!is.na(metadata_aim2$UpRes8mo))
+
+
+
+metadata_aim2$UpRes8mo = ifelse(rowSums(metadata_aim2[c("I8RunnyNose", "I8EyeInf", "I8EarInf", "I8SevFlu","I8SinusInf","I8StrepThrt","I8Laryngitis")])>0,1,0)
+
+metadata_aim2$UpRes8motot = rowSums(metadata_aim2[c("I8RunnyNose", "I8EyeInf", "I8EarInf", "I8SevFlu","I8SinusInf","I8StrepThrt","I8Laryngitis")])
+
+
+metadata_aim2$UpRes2Days8mo = ifelse(rowSums(metadata_aim2[c("I8RunnyNoseGt2D", "I8EyeInfGt2D", "I8EarInfGt2D", "I8SevFluGt2D","I8SinusInfGt2D","I8StrepThrtGt2D","I8LaryngitisGt2D")])>0,1,0)
+
+metadata_aim2$UpRes2Days8motot = rowSums(metadata_aim2[c("I8RunnyNoseGt2D", "I8EyeInfGt2D", "I8EarInfGt2D", "I8SevFluGt2D","I8SinusInfGt2D","I8StrepThrtGt2D","I8LaryngitisGt2D")])
+
+metadata_aim2$UpResDoc8mo = ifelse(rowSums(metadata_aim2[c("I8RunnyNoseDoc", "I8EyeInfDoc", "I8EarInfDoc", "I8SevFluDoc","I8SinusInfDoc","I8StrepThrtDoc","I8LaryngitisDoc")])>0,1,0)
+
+metadata_aim2$UpResDoc8motot = rowSums(metadata_aim2[c("I8RunnyNoseDoc", "I8EyeInfDoc", "I8EarInfDoc", "I8SevFluDoc","I8SinusInfDoc","I8StrepThrtDoc","I8LaryngitisDoc")])
+
+
+metadata_aim2$UpResRxMed8mo = ifelse(rowSums(metadata_aim2[c("I8RunnyNoseRxMed", "I8EyeInfRxMed", "I8EarInfRxMed", "I8SevFluRxMed","I8SinusInfRxMed","I8StrepThrtRxMed","I8LaryngitisRxMed")])>0,1,0)
+
+metadata_aim2$UpResRxMed8motot = rowSums(metadata_aim2[c("I8RunnyNoseRxMed", "I8EyeInfRxMed", "I8EarInfRxMed", "I8SevFluRxMed","I8SinusInfRxMed","I8StrepThrtRxMed","I8LaryngitisRxMed")])
+
+
+
+
+###12mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I12RunnyNose[i]) & metadata_aim2$I12RunnyNose[i]==0){
+    metadata_aim2$I12RunnyNoseGt2D[i] = 0
+    metadata_aim2$I12RunnyNoseDoc[i] = 0
+    metadata_aim2$I12RunnyNoseRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12EyeInf[i]) & metadata_aim2$I12EyeInf[i]==0){
+    metadata_aim2$I12EyeInfGt2D[i] = 0
+    metadata_aim2$I12EyeInfDoc[i] = 0
+    metadata_aim2$I12EyeInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12EarInf[i]) & metadata_aim2$I12EarInf[i]==0){
+    metadata_aim2$I12EarInfGt2D[i] = 0
+    metadata_aim2$I12EarInfDoc[i] = 0
+    metadata_aim2$I12EarInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12SevFlu[i]) & metadata_aim2$I12SevFlu[i]==0){
+    metadata_aim2$I12SevFluGt2D[i] = 0
+    metadata_aim2$I12SevFluDoc[i] = 0
+    metadata_aim2$I12SevFluRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12SinusInf[i]) & metadata_aim2$I12SinusInf[i]==0){
+    metadata_aim2$I12SinusInfGt2D[i] = 0
+    metadata_aim2$I12SinusInfDoc[i] = 0
+    metadata_aim2$I12SinusInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12StrepThrt[i]) & metadata_aim2$I12StrepThrt[i]==0){
+    metadata_aim2$I12StrepThrtGt2D[i] = 0
+    metadata_aim2$I12StrepThrtDoc[i] = 0
+    metadata_aim2$I12StrepThrtRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12Laryngitis[i]) & metadata_aim2$I12Laryngitis[i]==0){
+    metadata_aim2$I12LaryngitisGt2D[i] = 0
+    metadata_aim2$I12LaryngitisDoc[i] = 0
+    metadata_aim2$I12LaryngitisRxMed[i] = 0
+  }
+}
+
+upres_nonna = which(!is.na(metadata_aim2$UpRes12mo))
+
+
+
+metadata_aim2$UpRes12mo = ifelse(rowSums(metadata_aim2[c("I12RunnyNose", "I12EyeInf", "I12EarInf", "I12SevFlu","I12SinusInf","I12StrepThrt","I12Laryngitis")])>0,1,0)
+
+metadata_aim2$UpRes12motot = rowSums(metadata_aim2[c("I12RunnyNose", "I12EyeInf", "I12EarInf", "I12SevFlu","I12SinusInf","I12StrepThrt","I12Laryngitis")])
+
+metadata_aim2$UpRes2Days12mo = ifelse(rowSums(metadata_aim2[c("I12RunnyNoseGt2D", "I12EyeInfGt2D", "I12EarInfGt2D", "I12SevFluGt2D","I12SinusInfGt2D","I12StrepThrtGt2D","I12LaryngitisGt2D")])>0,1,0)
+
+metadata_aim2$UpRes2Days12motot = rowSums(metadata_aim2[c("I12RunnyNoseGt2D", "I12EyeInfGt2D", "I12EarInfGt2D", "I12SevFluGt2D","I12SinusInfGt2D","I12StrepThrtGt2D","I12LaryngitisGt2D")])
+
+metadata_aim2$UpResDoc12mo = ifelse(rowSums(metadata_aim2[c("I12RunnyNoseDoc", "I12EyeInfDoc", "I12EarInfDoc", "I12SevFluDoc","I12SinusInfDoc","I12StrepThrtDoc","I12LaryngitisDoc")])>0,1,0)
+
+metadata_aim2$UpResDoc12motot = rowSums(metadata_aim2[c("I12RunnyNoseDoc", "I12EyeInfDoc", "I12EarInfDoc", "I12SevFluDoc","I12SinusInfDoc","I12StrepThrtDoc","I12LaryngitisDoc")])
+
+metadata_aim2$UpResRxMed12mo = ifelse(rowSums(metadata_aim2[c("I12RunnyNoseRxMed", "I12EyeInfRxMed", "I12EarInfRxMed", "I12SevFluRxMed","I12SinusInfRxMed","I12StrepThrtRxMed","I12LaryngitisRxMed")])>0,1,0)
+
+metadata_aim2$UpResRxMed12motot = rowSums(metadata_aim2[c("I12RunnyNoseRxMed", "I12EyeInfRxMed", "I12EarInfRxMed", "I12SevFluRxMed","I12SinusInfRxMed","I12StrepThrtRxMed","I12LaryngitisRxMed")])
+
+
+###18mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I18RunnyNose[i]) & metadata_aim2$I18RunnyNose[i]==0){
+    metadata_aim2$I18RunnyNoseGt2D[i] = 0
+    metadata_aim2$I18RunnyNoseDoc[i] = 0
+    metadata_aim2$I18RunnyNoseRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18EyeInf[i]) & metadata_aim2$I18EyeInf[i]==0){
+    metadata_aim2$I18EyeInfGt2D[i] = 0
+    metadata_aim2$I18EyeInfDoc[i] = 0
+    metadata_aim2$I18EyeInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18EarInf[i]) & metadata_aim2$I18EarInf[i]==0){
+    metadata_aim2$I18EarInfGt2D[i] = 0
+    metadata_aim2$I18EarInfDoc[i] = 0
+    metadata_aim2$I18EarInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18SevFlu[i]) & metadata_aim2$I18SevFlu[i]==0){
+    metadata_aim2$I18SevFluGt2D[i] = 0
+    metadata_aim2$I18SevFluDoc[i] = 0
+    metadata_aim2$I18SevFluRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18SinusInf[i]) & metadata_aim2$I18SinusInf[i]==0){
+    metadata_aim2$I18SinusInfGt2D[i] = 0
+    metadata_aim2$I18SinusInfDoc[i] = 0
+    metadata_aim2$I18SinusInfRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18StrepThrt[i]) & metadata_aim2$I18StrepThrt[i]==0){
+    metadata_aim2$I18StrepThrtGt2D[i] = 0
+    metadata_aim2$I18StrepThrtDoc[i] = 0
+    metadata_aim2$I18StrepThrtRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18Laryngitis[i]) & metadata_aim2$I18Laryngitis[i]==0){
+    metadata_aim2$I18LaryngitisGt2D[i] = 0
+    metadata_aim2$I18LaryngitisDoc[i] = 0
+    metadata_aim2$I18LaryngitisRxMed[i] = 0
+  }
+}
+
+upres_nonna = which(!is.na(metadata_aim2$UpRes18mo))
+
+
+
+metadata_aim2$UpRes18mo = ifelse(rowSums(metadata_aim2[c("I18RunnyNose", "I18EyeInf", "I18EarInf", "I18SevFlu","I18SinusInf","I18StrepThrt","I18Laryngitis")])>0,1,0)
+
+metadata_aim2$UpRes18motot = rowSums(metadata_aim2[c("I18RunnyNose", "I18EyeInf", "I18EarInf", "I18SevFlu","I18SinusInf","I18StrepThrt","I18Laryngitis")])
+
+metadata_aim2$UpRes2Days18mo = ifelse(rowSums(metadata_aim2[c("I18RunnyNoseGt2D", "I18EyeInfGt2D", "I18EarInfGt2D", "I18SevFluGt2D","I18SinusInfGt2D","I18StrepThrtGt2D","I18LaryngitisGt2D")])>0,1,0)
+
+metadata_aim2$UpRes2Days18motot = rowSums(metadata_aim2[c("I18RunnyNoseGt2D", "I18EyeInfGt2D", "I18EarInfGt2D", "I18SevFluGt2D","I18SinusInfGt2D","I18StrepThrtGt2D","I18LaryngitisGt2D")])
+
+metadata_aim2$UpResDoc18mo = ifelse(rowSums(metadata_aim2[c("I18RunnyNoseDoc", "I18EyeInfDoc", "I18EarInfDoc", "I18SevFluDoc","I18SinusInfDoc","I18StrepThrtDoc","I18LaryngitisDoc")])>0,1,0)
+
+metadata_aim2$UpResDoc18motot = rowSums(metadata_aim2[c("I18RunnyNoseDoc", "I18EyeInfDoc", "I18EarInfDoc", "I18SevFluDoc","I18SinusInfDoc","I18StrepThrtDoc","I18LaryngitisDoc")])
+
+metadata_aim2$UpResRxMed18mo = ifelse(rowSums(metadata_aim2[c("I18RunnyNoseRxMed", "I18EyeInfRxMed", "I18EarInfRxMed", "I18SevFluRxMed","I18SinusInfRxMed","I18StrepThrtRxMed","I18LaryngitisRxMed")])>0,1,0)
+
+metadata_aim2$UpResRxMed18motot = rowSums(metadata_aim2[c("I18RunnyNoseRxMed", "I18EyeInfRxMed", "I18EarInfRxMed", "I18SevFluRxMed","I18SinusInfRxMed","I18StrepThrtRxMed","I18LaryngitisRxMed")])
+
+
+#Lo Res
+
+###4mo
+
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I4Bronchitis[i]) & metadata_aim2$I4Bronchitis[i]==0){
+    metadata_aim2$I4BronchitisGt2D[i] = 0
+    metadata_aim2$I4BronchitisDoc[i] = 0
+    metadata_aim2$I4BronchitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4Pneumonia[i]) & metadata_aim2$I4Pneumonia[i]==0){
+    metadata_aim2$I4PneumoniaGt2D[i] = 0
+    metadata_aim2$I4PneumoniaDoc[i] = 0
+    metadata_aim2$I4PneumoniaRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4Bronchiolitis[i]) & metadata_aim2$I4Bronchiolitis[i]==0){
+    metadata_aim2$I4BronchiolitisGt2D[i] = 0
+    metadata_aim2$I4BronchiolitisDoc[i] = 0
+    metadata_aim2$I4BronchiolitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4WhoopCough[i]) & metadata_aim2$I4WhoopCough[i]==0){
+    metadata_aim2$I4WhoopCoughGt2D[i] = 0
+    metadata_aim2$I4WhoopCoughDoc[i] = 0
+    metadata_aim2$I4WhoopCoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4RSV[i]) & metadata_aim2$I4RSV[i]==0){
+    metadata_aim2$I4RSVGt2D[i] = 0
+    metadata_aim2$I4RSVDoc[i] = 0
+    metadata_aim2$I4RSVRxMed[i] = 0
+  }
+
+}
+
+lores_nonna = which(!is.na(metadata_aim2$LoRes4mo))
+
+
+
+metadata_aim2$LoRes4mo = ifelse(rowSums(metadata_aim2[c("I4Bronchitis", "I4Pneumonia", "I4Bronchiolitis", "I4WhoopCough","I4RSV")])>0,1,0)
+
+metadata_aim2$LoRes4motot = rowSums(metadata_aim2[c("I4Bronchitis", "I4Pneumonia", "I4Bronchiolitis", "I4WhoopCough","I4RSV")])
+
+metadata_aim2$LoRes2Days4mo = ifelse(rowSums(metadata_aim2[c("I4BronchitisGt2D", "I4PneumoniaGt2D", "I4BronchiolitisGt2D", "I4WhoopCoughGt2D","I4RSVGt2D")])>0,1,0)
+
+metadata_aim2$LoRes2Days4motot = rowSums(metadata_aim2[c("I4BronchitisGt2D", "I4PneumoniaGt2D", "I4BronchiolitisGt2D", "I4WhoopCoughGt2D","I4RSVGt2D")])
+
+metadata_aim2$LoResDoc4mo = ifelse(rowSums(metadata_aim2[c("I4BronchitisDoc", "I4PneumoniaDoc", "I4BronchiolitisDoc", "I4WhoopCoughDoc","I4RSVDoc")])>0,1,0)
+
+metadata_aim2$LoResDoc4motot = rowSums(metadata_aim2[c("I4BronchitisDoc", "I4PneumoniaDoc", "I4BronchiolitisDoc", "I4WhoopCoughDoc","I4RSVDoc")])
+
+metadata_aim2$LoResRxMed4mo = ifelse(rowSums(metadata_aim2[c("I4BronchitisRxMed", "I4PneumoniaRxMed", "I4BronchiolitisRxMed", "I4WhoopCoughRxMed","I4RSVRxMed")])>0,1,0)
+
+metadata_aim2$LoResRxMed4motot = rowSums(metadata_aim2[c("I4BronchitisRxMed", "I4PneumoniaRxMed", "I4BronchiolitisRxMed", "I4WhoopCoughRxMed","I4RSVRxMed")])
+
+###8mo
+
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I8Bronchitis[i]) & metadata_aim2$I8Bronchitis[i]==0){
+    metadata_aim2$I8BronchitisGt2D[i] = 0
+    metadata_aim2$I8BronchitisDoc[i] = 0
+    metadata_aim2$I8BronchitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8Pneumonia[i]) & metadata_aim2$I8Pneumonia[i]==0){
+    metadata_aim2$I8PneumoniaGt2D[i] = 0
+    metadata_aim2$I8PneumoniaDoc[i] = 0
+    metadata_aim2$I8PneumoniaRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8Bronchiolitis[i]) & metadata_aim2$I8Bronchiolitis[i]==0){
+    metadata_aim2$I8BronchiolitisGt2D[i] = 0
+    metadata_aim2$I8BronchiolitisDoc[i] = 0
+    metadata_aim2$I8BronchiolitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8WhoopCough[i]) & metadata_aim2$I8WhoopCough[i]==0){
+    metadata_aim2$I8WhoopCoughGt2D[i] = 0
+    metadata_aim2$I8WhoopCoughDoc[i] = 0
+    metadata_aim2$I8WhoopCoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8RSV[i]) & metadata_aim2$I8RSV[i]==0){
+    metadata_aim2$I8RSVGt2D[i] = 0
+    metadata_aim2$I8RSVDoc[i] = 0
+    metadata_aim2$I8RSVRxMed[i] = 0
+  }
+
+}
+
+lores_nonna = which(!is.na(metadata_aim2$LoRes8mo))
+
+
+
+metadata_aim2$LoRes8mo = ifelse(rowSums(metadata_aim2[c("I8Bronchitis", "I8Pneumonia", "I8Bronchiolitis", "I8WhoopCough","I8RSV")])>0,1,0)
+
+metadata_aim2$LoRes8motot = rowSums(metadata_aim2[c("I8Bronchitis", "I8Pneumonia", "I8Bronchiolitis", "I8WhoopCough","I8RSV")])
+
+metadata_aim2$LoRes2Days8mo = ifelse(rowSums(metadata_aim2[c("I8BronchitisGt2D", "I8PneumoniaGt2D", "I8BronchiolitisGt2D", "I8WhoopCoughGt2D","I8RSVGt2D")])>0,1,0)
+
+metadata_aim2$LoRes2Days8motot = rowSums(metadata_aim2[c("I8BronchitisGt2D", "I8PneumoniaGt2D", "I8BronchiolitisGt2D", "I8WhoopCoughGt2D","I8RSVGt2D")])
+
+metadata_aim2$LoResDoc8mo = ifelse(rowSums(metadata_aim2[c("I8BronchitisDoc", "I8PneumoniaDoc", "I8BronchiolitisDoc", "I8WhoopCoughDoc","I8RSVDoc")])>0,1,0)
+
+metadata_aim2$LoResDoc8motot = rowSums(metadata_aim2[c("I8BronchitisDoc", "I8PneumoniaDoc", "I8BronchiolitisDoc", "I8WhoopCoughDoc","I8RSVDoc")])
+
+metadata_aim2$LoResRxMed8mo = ifelse(rowSums(metadata_aim2[c("I8BronchitisRxMed", "I8PneumoniaRxMed", "I8BronchiolitisRxMed", "I8WhoopCoughRxMed","I8RSVRxMed")])>0,1,0)
+
+metadata_aim2$LoResRxMed8motot = rowSums(metadata_aim2[c("I8BronchitisRxMed", "I8PneumoniaRxMed", "I8BronchiolitisRxMed", "I8WhoopCoughRxMed","I8RSVRxMed")])
+
+
+###12mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I12Bronchitis[i]) & metadata_aim2$I12Bronchitis[i]==0){
+    metadata_aim2$I12BronchitisGt2D[i] = 0
+    metadata_aim2$I12BronchitisDoc[i] = 0
+    metadata_aim2$I12BronchitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12Pneumonia[i]) & metadata_aim2$I12Pneumonia[i]==0){
+    metadata_aim2$I12PneumoniaGt2D[i] = 0
+    metadata_aim2$I12PneumoniaDoc[i] = 0
+    metadata_aim2$I12PneumoniaRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12Bronchiolitis[i]) & metadata_aim2$I12Bronchiolitis[i]==0){
+    metadata_aim2$I12BronchiolitisGt2D[i] = 0
+    metadata_aim2$I12BronchiolitisDoc[i] = 0
+    metadata_aim2$I12BronchiolitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12WhoopCough[i]) & metadata_aim2$I12WhoopCough[i]==0){
+    metadata_aim2$I12WhoopCoughGt2D[i] = 0
+    metadata_aim2$I12WhoopCoughDoc[i] = 0
+    metadata_aim2$I12WhoopCoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12RSV[i]) & metadata_aim2$I12RSV[i]==0){
+    metadata_aim2$I12RSVGt2D[i] = 0
+    metadata_aim2$I12RSVDoc[i] = 0
+    metadata_aim2$I12RSVRxMed[i] = 0
+  }
+
+}
+
+lores_nonna = which(!is.na(metadata_aim2$LoRes12mo))
+
+
+
+metadata_aim2$LoRes12mo = ifelse(rowSums(metadata_aim2[c("I12Bronchitis", "I12Pneumonia", "I12Bronchiolitis", "I12WhoopCough","I12RSV")])>0,1,0)
+
+metadata_aim2$LoRes12motot = rowSums(metadata_aim2[c("I12Bronchitis", "I12Pneumonia", "I12Bronchiolitis", "I12WhoopCough","I12RSV")])
+
+metadata_aim2$LoRes2Days12mo = ifelse(rowSums(metadata_aim2[c("I12BronchitisGt2D", "I12PneumoniaGt2D", "I12BronchiolitisGt2D", "I12WhoopCoughGt2D","I12RSVGt2D")])>0,1,0)
+
+metadata_aim2$LoRes2Days12motot = rowSums(metadata_aim2[c("I12BronchitisGt2D", "I12PneumoniaGt2D", "I12BronchiolitisGt2D", "I12WhoopCoughGt2D","I12RSVGt2D")])
+
+metadata_aim2$LoResDoc12mo = ifelse(rowSums(metadata_aim2[c("I12BronchitisDoc", "I12PneumoniaDoc", "I12BronchiolitisDoc", "I12WhoopCoughDoc","I12RSVDoc")])>0,1,0)
+
+metadata_aim2$LoResDoc12motot = rowSums(metadata_aim2[c("I12BronchitisDoc", "I12PneumoniaDoc", "I12BronchiolitisDoc", "I12WhoopCoughDoc","I12RSVDoc")])
+
+metadata_aim2$LoResRxMed12mo = ifelse(rowSums(metadata_aim2[c("I12BronchitisRxMed", "I12PneumoniaRxMed", "I12BronchiolitisRxMed", "I12WhoopCoughRxMed","I12RSVRxMed")])>0,1,0)
+
+metadata_aim2$LoResRxMed12motot = rowSums(metadata_aim2[c("I12BronchitisRxMed", "I12PneumoniaRxMed", "I12BronchiolitisRxMed", "I12WhoopCoughRxMed","I12RSVRxMed")])
+
+###18mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I18Bronchitis[i]) & metadata_aim2$I18Bronchitis[i]==0){
+    metadata_aim2$I18BronchitisGt2D[i] = 0
+    metadata_aim2$I18BronchitisDoc[i] = 0
+    metadata_aim2$I18BronchitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18Pneumonia[i]) & metadata_aim2$I18Pneumonia[i]==0){
+    metadata_aim2$I18PneumoniaGt2D[i] = 0
+    metadata_aim2$I18PneumoniaDoc[i] = 0
+    metadata_aim2$I18PneumoniaRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18Bronchiolitis[i]) & metadata_aim2$I18Bronchiolitis[i]==0){
+    metadata_aim2$I18BronchiolitisGt2D[i] = 0
+    metadata_aim2$I18BronchiolitisDoc[i] = 0
+    metadata_aim2$I18BronchiolitisRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18WhoopCough[i]) & metadata_aim2$I18WhoopCough[i]==0){
+    metadata_aim2$I18WhoopCoughGt2D[i] = 0
+    metadata_aim2$I18WhoopCoughDoc[i] = 0
+    metadata_aim2$I18WhoopCoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18RSV[i]) & metadata_aim2$I18RSV[i]==0){
+    metadata_aim2$I18RSVGt2D[i] = 0
+    metadata_aim2$I18RSVDoc[i] = 0
+    metadata_aim2$I18RSVRxMed[i] = 0
+  }
+
+}
+
+lores_nonna = which(!is.na(metadata_aim2$LoRes18mo))
+
+
+
+metadata_aim2$LoRes18mo = ifelse(rowSums(metadata_aim2[c("I18Bronchitis", "I18Pneumonia", "I18Bronchiolitis", "I18WhoopCough","I18RSV")])>0,1,0)
+
+metadata_aim2$LoRes18motot = rowSums(metadata_aim2[c("I18Bronchitis", "I18Pneumonia", "I18Bronchiolitis", "I18WhoopCough","I18RSV")])
+
+metadata_aim2$LoRes2Days18mo = ifelse(rowSums(metadata_aim2[c("I18BronchitisGt2D", "I18PneumoniaGt2D", "I18BronchiolitisGt2D", "I18WhoopCoughGt2D","I18RSVGt2D")])>0,1,0)
+
+metadata_aim2$LoRes2Days18motot = rowSums(metadata_aim2[c("I18BronchitisGt2D", "I18PneumoniaGt2D", "I18BronchiolitisGt2D", "I18WhoopCoughGt2D","I18RSVGt2D")])
+
+
+metadata_aim2$LoResDoc18mo = ifelse(rowSums(metadata_aim2[c("I18BronchitisDoc", "I18PneumoniaDoc", "I18BronchiolitisDoc", "I18WhoopCoughDoc","I18RSVDoc")])>0,1,0)
+
+metadata_aim2$LoResDoc18motot = rowSums(metadata_aim2[c("I18BronchitisDoc", "I18PneumoniaDoc", "I18BronchiolitisDoc", "I18WhoopCoughDoc","I18RSVDoc")])
+
+metadata_aim2$LoResRxMed18mo = ifelse(rowSums(metadata_aim2[c("I18BronchitisRxMed", "I18PneumoniaRxMed", "I18BronchiolitisRxMed", "I18WhoopCoughRxMed","I18RSVRxMed")])>0,1,0)
+
+metadata_aim2$LoResRxMed18motot = rowSums(metadata_aim2[c("I18BronchitisRxMed", "I18PneumoniaRxMed", "I18BronchiolitisRxMed", "I18WhoopCoughRxMed","I18RSVRxMed")])
+
+
+
+
+##ResSym: Cough, Wheeze, DifBreath
+
+###4mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I4Cough[i]) & metadata_aim2$I4Cough[i]==0){
+    metadata_aim2$I4CoughGt2D[i] = 0
+    metadata_aim2$I4CoughDoc[i] = 0
+    metadata_aim2$I4CoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4Wheeze[i]) & metadata_aim2$I4Wheeze[i]==0){
+    metadata_aim2$I4WheezeGt2D[i] = 0
+    metadata_aim2$I4WheezeDoc[i] = 0
+    metadata_aim2$I4WheezeRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4DifBreath[i]) & metadata_aim2$I4DifBreath[i]==0){
+    metadata_aim2$I4DifBreathGt2D[i] = 0
+    metadata_aim2$I4DifBreathDoc[i] = 0
+    metadata_aim2$I4DifBreathRxMed[i] = 0
+  }
+}
+
+
+
+
+metadata_aim2$ResSym4mo = ifelse(rowSums(metadata_aim2[c("I4Cough", "I4Wheeze", "I4DifBreath")])>0,1,0)
+
+metadata_aim2$ResSym4motot = rowSums(metadata_aim2[c("I4Cough", "I4Wheeze", "I4DifBreath")])
+
+metadata_aim2$ResSym2Days4mo = ifelse(rowSums(metadata_aim2[c("I4CoughGt2D", "I4WheezeGt2D", "I4DifBreathGt2D")])>0,1,0)
+
+metadata_aim2$ResSym2Days4motot = rowSums(metadata_aim2[c("I4CoughGt2D", "I4WheezeGt2D", "I4DifBreathGt2D")])
+
+metadata_aim2$ResSymDoc4mo = ifelse(rowSums(metadata_aim2[c("I4CoughDoc", "I4WheezeDoc", "I4DifBreathDoc")])>0,1,0)
+
+metadata_aim2$ResSymDoc4motot = rowSums(metadata_aim2[c("I4CoughDoc", "I4WheezeDoc", "I4DifBreathDoc")])
+
+metadata_aim2$ResSymRxMed4mo = ifelse(rowSums(metadata_aim2[c("I4CoughRxMed", "I4WheezeRxMed", "I4DifBreathRxMed")])>0,1,0)
+
+metadata_aim2$ResSymRxMed4motot = rowSums(metadata_aim2[c("I4CoughRxMed", "I4WheezeRxMed", "I4DifBreathRxMed")])
+
+###8mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I8Cough[i]) & metadata_aim2$I8Cough[i]==0){
+    metadata_aim2$I8CoughGt2D[i] = 0
+    metadata_aim2$I8CoughDoc[i] = 0
+    metadata_aim2$I8CoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8Wheeze[i]) & metadata_aim2$I8Wheeze[i]==0){
+    metadata_aim2$I8WheezeGt2D[i] = 0
+    metadata_aim2$I8WheezeDoc[i] = 0
+    metadata_aim2$I8WheezeRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8DifBreath[i]) & metadata_aim2$I8DifBreath[i]==0){
+    metadata_aim2$I8DifBreathGt2D[i] = 0
+    metadata_aim2$I8DifBreathDoc[i] = 0
+    metadata_aim2$I8DifBreathRxMed[i] = 0
+  }
+}
+
+
+#for (i in 1:nrow(metadata_aim2_test)){
+#  if(!is.na(metadata_aim2_test$I8Cough[i]) & metadata_aim2_test$I8Cough[i]==0){
+#    metadata_aim2_test$I8CoughGt2D[i] = 0
+#    metadata_aim2_test$I8CoughDoc[i] = 0
+#    metadata_aim2_test$I8CoughRxMed[i] = 0
+#  }
+#}
+
+
+
+metadata_aim2$ResSym8mo = ifelse(rowSums(metadata_aim2[c("I8Cough", "I8Wheeze", "I8DifBreath")])>0,1,0)
+
+metadata_aim2$ResSym8motot = rowSums(metadata_aim2[c("I8Cough", "I8Wheeze", "I8DifBreath")])
+
+metadata_aim2$ResSym2Days8mo = ifelse(rowSums(metadata_aim2[c("I8CoughGt2D", "I8WheezeGt2D", "I8DifBreathGt2D")])>0,1,0)
+
+metadata_aim2$ResSym2Days8motot = rowSums(metadata_aim2[c("I8CoughGt2D", "I8WheezeGt2D", "I8DifBreathGt2D")])
+
+########?????
+#metadata_aim2$I8CoughDoc[1836] = "-"
+#metadata_aim2$I8CoughDoc = metadata_aim2_test$I8CoughDoc
+
+metadata_aim2$I8CoughDoc[1836] = NA
+metadata_aim2$I8CoughDoc = as.numeric(as.character(metadata_aim2$I8CoughDoc))
+metadata_aim2$ResSymDoc8mo = ifelse(rowSums(metadata_aim2[c("I8CoughDoc", "I8WheezeDoc", "I8DifBreathDoc")])>0,1,0)
+
+metadata_aim2$ResSymDoc8motot = rowSums(metadata_aim2[c("I8CoughDoc", "I8WheezeDoc", "I8DifBreathDoc")])
+
+metadata_aim2$ResSymRxMed8mo = ifelse(rowSums(metadata_aim2[c("I8CoughRxMed", "I8WheezeRxMed", "I8DifBreathRxMed")])>0,1,0)
+
+metadata_aim2$ResSymRxMed8motot = rowSums(metadata_aim2[c("I8CoughRxMed", "I8WheezeRxMed", "I8DifBreathRxMed")])
+
+###12mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I12Cough[i]) & metadata_aim2$I12Cough[i]==0){
+    metadata_aim2$I12CoughGt2D[i] = 0
+    metadata_aim2$I12CoughDoc[i] = 0
+    metadata_aim2$I12CoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12Wheeze[i]) & metadata_aim2$I12Wheeze[i]==0){
+    metadata_aim2$I12WheezeGt2D[i] = 0
+    metadata_aim2$I12WheezeDoc[i] = 0
+    metadata_aim2$I12WheezeRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12DifBreath[i]) & metadata_aim2$I12DifBreath[i]==0){
+    metadata_aim2$I12DifBreathGt2D[i] = 0
+    metadata_aim2$I12DifBreathDoc[i] = 0
+    metadata_aim2$I12DifBreathRxMed[i] = 0
+  }
+}
+
+
+metadata_aim2$ResSym12mo = ifelse(rowSums(metadata_aim2[c("I12Cough", "I12Wheeze", "I12DifBreath")])>0,1,0)
+
+metadata_aim2$ResSym12motot = rowSums(metadata_aim2[c("I12Cough", "I12Wheeze", "I12DifBreath")])
+
+metadata_aim2$ResSym2Days12mo = ifelse(rowSums(metadata_aim2[c("I12CoughGt2D", "I12WheezeGt2D", "I12DifBreathGt2D")])>0,1,0)
+
+metadata_aim2$ResSym2Days12motot = rowSums(metadata_aim2[c("I12CoughGt2D", "I12WheezeGt2D", "I12DifBreathGt2D")])
+
+metadata_aim2$ResSymDoc12mo = ifelse(rowSums(metadata_aim2[c("I12CoughDoc", "I12WheezeDoc", "I12DifBreathDoc")])>0,1,0)
+
+metadata_aim2$ResSymDoc12motot = rowSums(metadata_aim2[c("I12CoughDoc", "I12WheezeDoc", "I12DifBreathDoc")])
+
+#########?????
+metadata_aim2$I12DifBreathRxMed[1670] = NA
+metadata_aim2$I12DifBreathRxMed = as.numeric(as.character(metadata_aim2$I12DifBreathRxMed))
+
+metadata_aim2$ResSymRxMed12mo = ifelse(rowSums(metadata_aim2[c("I12CoughRxMed", "I12WheezeRxMed", "I12DifBreathRxMed")])>0,1,0)
+
+metadata_aim2$ResSymRxMed12motot = rowSums(metadata_aim2[c("I12CoughRxMed", "I12WheezeRxMed", "I12DifBreathRxMed")])
+
+###18mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I18Cough[i]) & metadata_aim2$I18Cough[i]==0){
+    metadata_aim2$I18CoughGt2D[i] = 0
+    metadata_aim2$I18CoughDoc[i] = 0
+    metadata_aim2$I18CoughRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18Wheeze[i]) & metadata_aim2$I18Wheeze[i]==0){
+    metadata_aim2$I18WheezeGt2D[i] = 0
+    metadata_aim2$I18WheezeDoc[i] = 0
+    metadata_aim2$I18WheezeRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18DifBreath[i]) & metadata_aim2$I18DifBreath[i]==0){
+    metadata_aim2$I18DifBreathGt2D[i] = 0
+    metadata_aim2$I18DifBreathDoc[i] = 0
+    metadata_aim2$I18DifBreathRxMed[i] = 0
+  }
+}
+
+
+metadata_aim2$ResSym18mo = ifelse(rowSums(metadata_aim2[c("I18Cough", "I18Wheeze", "I18DifBreath")])>0,1,0)
+
+metadata_aim2$ResSym18motot = rowSums(metadata_aim2[c("I18Cough", "I18Wheeze", "I18DifBreath")])
+
+metadata_aim2$ResSym2Days18mo = ifelse(rowSums(metadata_aim2[c("I18CoughGt2D", "I18WheezeGt2D", "I18DifBreathGt2D")])>0,1,0)
+
+metadata_aim2$ResSym2Days18motot = rowSums(metadata_aim2[c("I18CoughGt2D", "I18WheezeGt2D", "I18DifBreathGt2D")])
+
+metadata_aim2$ResSymDoc18mo = ifelse(rowSums(metadata_aim2[c("I18CoughDoc", "I18WheezeDoc", "I18DifBreathDoc")])>0,1,0)
+
+metadata_aim2$ResSymDoc18motot = rowSums(metadata_aim2[c("I18CoughDoc", "I18WheezeDoc", "I18DifBreathDoc")])
+
+metadata_aim2$ResSymRxMed18mo = ifelse(rowSums(metadata_aim2[c("I18CoughRxMed", "I18WheezeRxMed", "I18DifBreathRxMed")])>0,1,0)
+
+metadata_aim2$ResSymRxMed18motot = rowSums(metadata_aim2[c("I18CoughRxMed", "I18WheezeRxMed", "I18DifBreathRxMed")])
+
+
+##Fever, Diarrhea
+
+###4mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I4Fvr[i]) & metadata_aim2$I4Fvr[i]==0){
+    metadata_aim2$I4FvrGt2D[i] = 0
+    metadata_aim2$I4FvrDoc[i] = 0
+    metadata_aim2$I4FvrRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I4Diarrhea[i]) & metadata_aim2$I4Diarrhea[i]==0){
+    metadata_aim2$I4DiarrheaGt2D[i] = 0
+    metadata_aim2$I4DiarrheaDoc[i] = 0
+    metadata_aim2$I4DiarrheaRxMed[i] = 0
+  }
+}
+
+
+metadata_aim2$I4FvrRxMed[1635] = NA
+metadata_aim2$I4FvrRxMed = as.numeric(as.character(metadata_aim2$I4FvrRxMed))
+
+
+metadata_aim2$I4Diarrhea[1633] = NA
+metadata_aim2$I4Diarrhea = as.numeric(as.character(metadata_aim2$I4Diarrhea))
+
+
+
+###8mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I8Fvr[i]) & metadata_aim2$I8Fvr[i]==0){
+    metadata_aim2$I8FvrGt2D[i] = 0
+    metadata_aim2$I8FvrDoc[i] = 0
+    metadata_aim2$I8FvrRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I8Diarrhea[i]) & metadata_aim2$I8Diarrhea[i]==0){
+    metadata_aim2$I8DiarrheaGt2D[i] = 0
+    metadata_aim2$I8DiarrheaDoc[i] = 0
+    metadata_aim2$I8DiarrheaRxMed[i] = 0
+  }
+  
+}
+
+
+
+metadata_aim2$I8Fvr[1712] = NA
+metadata_aim2$I8Fvr = as.numeric(as.character(metadata_aim2$I8Fvr))
+
+
+###12mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I12Fvr[i]) & metadata_aim2$I12Fvr[i]==0){
+    metadata_aim2$I12FvrGt2D[i] = 0
+    metadata_aim2$I12FvrDoc[i] = 0
+    metadata_aim2$I12FvrRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I12Diarrhea[i]) & metadata_aim2$I12Diarrhea[i]==0){
+    metadata_aim2$I12DiarrheaGt2D[i] = 0
+    metadata_aim2$I12DiarrheaDoc[i] = 0
+    metadata_aim2$I12DiarrheaRxMed[i] = 0
+  }
+}
+
+
+
+###18mo
+for (i in 1:nrow(metadata_aim2)){
+  if(!is.na(metadata_aim2$I18Fvr[i]) & metadata_aim2$I18Fvr[i]==0){
+    metadata_aim2$I18FvrGt2D[i] = 0
+    metadata_aim2$I18FvrDoc[i] = 0
+    metadata_aim2$I18FvrRxMed[i] = 0
+  }
+  if(!is.na(metadata_aim2$I18Diarrhea[i]) & metadata_aim2$I18Diarrhea[i]==0){
+    metadata_aim2$I18DiarrheaGt2D[i] = 0
+    metadata_aim2$I18DiarrheaDoc[i] = 0
+    metadata_aim2$I18DiarrheaRxMed[i] = 0
+  }
+
+}
+
+
+
+###18mo
+
+#Replace -9s 
+
+negnines = which(metadata_aim2==-9, arr.ind = TRUE)
+
+
+metadata_aim2[negnines] <- NA
+
+
+alloutcomes = c(upResOutRxMed, upResOutDoc, upResOutGt2D, upResOutEver,
+                loResOutRxMed, loResOutDoc, loResOutGt2D, loResOutEver,
+                ressymOutRxMed, ressymOutDoc, ressymOutGt2D, ressymOutEver,
+                feverRxMed, feverDoc, feverGt2D, feverEver,
+                diarrheaRxMed, diarrheaDoc, diarrheaGt2D, diarrheaEver)
+
+
+#Impute specific allergy values
+
+
+
+```
+
+#Data Cleaning: 16S
+```{r}
+stool_16s_genus_6w = stool_16s_genus_6w[,-grep("__",colnames(stool_16s_genus_6w))]
+
+
+##########Metadata##############
+match_6w_mblid = match(rownames(stool_16s_6w), mblid_linkage$sample_id)
+unqid_with_16s_6w = mblid_linkage$unq_id[match_6w_mblid]
+match_6w_unqid = match(unqid_with_16s_6w, metadata_aim2$unq_id)
+metadata_6w = metadata_aim2[match_6w_unqid,]
+
+#DF with imputed confounders
+#6w
+set.seed(10)
+metadata_6w_impute = metadata_6w
+df_confmice = metadata_6w[conf_16s_6w]
+
+tempData = mice(df_confmice,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE)
+df_comp = complete(tempData,1)
+rownames(df_comp) = rownames(metadata_6w)
+df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+metadata_6w_impute[conf_16s_6w] = df_comp
+
+
+
+
+```
+
+
+
+
+
+#Data Cleaning: Metagenomics
+```{r}
+#####################
+#Matching 6w data
+#6W Stool
+colnames(species_level_metagen) = gsub('^.', '', colnames(species_level_metagen))
+species_level_metagen = t(species_level_metagen)
+
+
+mblid_linkage_6w = subset(mblid_linkage, time_period == "6W")
+
+#6w
+
+rownames(species_level_metagen)[na.omit(match(mblid_linkage_6w$sample_id,
+                                              rownames(species_level_metagen)))]
+
+mblid_linkage_6w$unq_id[na.omit(match(rownames(species_level_metagen), mblid_linkage_6w$sample_id))]
+
+unq_id_6w_metaphlan = mblid_linkage_6w$unq_id[na.omit(match(rownames(species_level_metagen), mblid_linkage_6w$sample_id))]
+mbl_id_6w_metaphlan = mblid_linkage_6w$sample_id[na.omit(match(rownames(species_level_metagen), mblid_linkage_6w$sample_id))]
+
+
+species_level_metagen_6w = species_level_metagen[na.omit(match(mblid_linkage_6w$sample_id,
+                                              rownames(species_level_metagen))),]
+
+match_6w_unqid_metaphlan = match(unq_id_6w_metaphlan, 
+                              metadata_aim2$unq_id)
+metadata_6w_metaphlan = metadata_aim2[match_6w_unqid_metaphlan ,]
+
+
+match_6w_unqid_metaphlan_imp = match(unq_id_6w_metaphlan, 
+                              metadata_6w_impute$unq_id)
+metadata_6w_metaphlan_impute = metadata_6w_impute[match_6w_unqid_metaphlan_imp,]
+
+
+#Metaphlan 
+metaphlan2names1y = list.files()
+unique(substr(metaphlan2names1y, start = 1, stop = 8))
+metaphlan2names = unique(substr(metaphlan2names1y, start = 1, stop = 8))
+length(na.omit(match(mblid_linkage$sample_id, metaphlan2names))) 
+
+metaphlan2names[na.omit(match(mblid_linkage$sample_id, metaphlan2names))]
+mblid_linkage$unq_id[na.omit(match(metaphlan2names, mblid_linkage$sample_id))]
+
+mblid_linkage_6w = mblid_linkage[which(mblid_linkage$time_period=="6W"),]
+mblid_linkage_12m = mblid_linkage[which(mblid_linkage$time_period=="12M"),]
+
+
+###Grabbing the data
+#Creating OTU table for path abundance
+##This is all data
+species_6w_list = list()
+
+for (i in 1:length(metaphlan2names)){
+  print(i)
+  file_name = paste("FILE_NAME",
+                    metaphlan2names[i], 
+                    ".tsv", 
+                    sep = "")
+  species_6w_list[[i]] = read.delim(file = file_name,
+           sep = '\t', header = TRUE)
+}
+
+#All unique path abundance names
+all_sp_names_6w <- unique(unlist(sapply(species_6w_list, function(x) x[,1])))
+
+library(plyr)
+library(dplyr)
+#Create dataframe
+species_6w_df <- do.call(rbind.fill, lapply(species_6w_list, function(mat) {
+  df_sp_6w = t(data.frame(mat[,2]))
+  df_sp_6w_colnames = mat[,1]
+  colnames(df_sp_6w) = df_sp_6w_colnames
+  df_sp_6w = as.data.frame(df_sp_6w)
+}))
+
+#Set rownames to be unique ids
+rownames(species_6w_df) = metaphlan2names
+#Converting NAs to Zeros
+species_6w_df[is.na(species_6w_df)] = 0
+
+
+
+species_level_metagen2 = species_6w_df
+
+
+#Kingdom
+colnames(species_level_metagen2)[-grep("\\|", colnames(species_level_metagen2))]
+
+#species_level_metagen2_archaea = species_level_metagen2[,grep("k__Archaea",
+#                                                              colnames(species_level_metagen2))]
+
+species_level_metagen2_bacteria = species_level_metagen2[,grep("k__Bacteria",
+                                                              colnames(species_level_metagen2))]
+
+species_level_metagen2_eukaryota = species_level_metagen2[,grep("k__Eukaryota",
+                                                              colnames(species_level_metagen2))]
+
+species_level_metagen2_viruses = species_level_metagen2[,grep("k__Viruses",
+                                                              colnames(species_level_metagen2))]
+
+#Species
+#Archaea
+#species_level_metagen2_archaea_sp = species_level_metagen2_archaea[,grep("\\|s\\_", colnames(species_level_metagen2_archaea))]
+
+#species_level_metagen2_archaea_sp = species_level_metagen2_archaea_sp[,-grep("\\|t\\_", colnames(species_level_metagen2_archaea_sp))]
+#Bacteria
+species_level_metagen2_bacteria_sp = species_level_metagen2_bacteria[,grep("\\|s\\_", colnames(species_level_metagen2_bacteria))]
+
+species_level_metagen2_bacteria_sp = species_level_metagen2_bacteria_sp[,-grep("\\|t\\_", colnames(species_level_metagen2_bacteria_sp))]
+
+#Eukaryota
+species_level_metagen2_eukaryota_sp = species_level_metagen2_eukaryota[,grep("\\|s\\_", colnames(species_level_metagen2_eukaryota))]
+
+species_level_metagen2_eukaryota_sp = species_level_metagen2_eukaryota_sp[,-grep("\\|t\\_", colnames(species_level_metagen2_eukaryota_sp))]
+
+#Viruses
+species_level_metagen2_viruses_sp = species_level_metagen2_viruses[,grep("\\|s\\_", colnames(species_level_metagen2_viruses))]
+
+species_level_metagen2_viruses_sp = species_level_metagen2_viruses_sp[,-grep("\\|t\\_", colnames(species_level_metagen2_viruses_sp))]
+
+#All Together
+species_level_metagen2_sp = cbind(species_level_metagen2_bacteria_sp, 
+                                  species_level_metagen2_eukaryota_sp,
+                                  species_level_metagen2_viruses_sp)
+
+
+metagen2_sp_kingdoms = c(rep("Bacteria", ncol(species_level_metagen2_bacteria_sp)),
+  rep("Eukaryota", ncol(species_level_metagen2_eukaryota_sp)),
+  rep("Viruses", ncol(species_level_metagen2_viruses_sp)))
+  
+
+colnames(species_level_metagen2_sp) = gsub('(k.*\\|s\\_\\_)', "", colnames(species_level_metagen2_sp))
+
+
+mblid_linkage_6w = subset(mblid_linkage, time_period == "6W")
+
+
+#6W
+
+rownames(species_level_metagen2_sp)[na.omit(match(mblid_linkage_6w$sample_id,
+                                              rownames(species_level_metagen2_sp)))]
+
+mblid_linkage_6w$unq_id[na.omit(match(rownames(species_level_metagen2_sp), mblid_linkage_6w$sample_id))]
+
+unq_id_6w_metaphlan = mblid_linkage_6w$unq_id[na.omit(match(rownames(species_level_metagen2_sp), mblid_linkage_6w$sample_id))]
+mbl_id_6w_metaphlan = mblid_linkage_6w$sample_id[na.omit(match(rownames(species_level_metagen2_sp), mblid_linkage_6w$sample_id))]
+
+
+species_level_metagen_6w = species_level_metagen2_sp[na.omit(match(mblid_linkage_6w$sample_id,
+                                              rownames(species_level_metagen2_sp))),]
+
+#unq_id_6w_metaphlan = mblid_linkage_6w$unq_id[na.omit(match(rownames(species_level_metagen_6w), mblid_linkage_6w$sample_id))]
+
+match_6w_unqid_metaphlan = match(unq_id_6w_metaphlan, 
+                              metadata_aim2$unq_id)
+metadata_6w_metaphlan = metadata_aim2[match_6w_unqid_metaphlan ,]
+
+
+match_6w_unqid_metaphlan_imp = match(unq_id_6w_metaphlan, 
+                              metadata_6w_impute$unq_id)
+metadata_6w_metaphlan_impute = metadata_6w_impute[match_6w_unqid_metaphlan_imp,]
+
+
+```
+
+
+
+
+#16S Alpha Diversity GEE
+```{r}
+library(knitr)
+library(geepack)
+library(vegan)
+library(ade4)
+library(ggplot2)
+library(compositions)
+library(factoextra)
+library(mice)
+
+
+
+
+#Outside functions
+get_eigen_opt = function(evals){
+  i = 1
+  pervar = 0
+  sumvar = c()
+  while(pervar < 0.8){
+    pervar = sum(evals[1:i])/sum(evals[1:length(evals)])
+    sumvar = c(sumvar,pervar)
+    i = i+1
+  }
+  return(i-1)
+}
+
+
+all_analysis_function_1yrcum_gee_adj = function(data_16s,
+                                 metadata,
+                                 outcomes,
+                                 confounders,
+                                 stratifiers){
+  #data_16s = stool_16s_genus_6w
+  #metadata = metadata_6w_impute
+  #metadata = metadata_6w
+  #outcomes = upResOutRxMed
+  #confounders = conf_16s_6w
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+      
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      df_na[outcomes4812[[i]]] <- lapply(df_na[outcomes4812[[i]]] , factor)
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.numeric)
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 0.5)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr )
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+
+
+  
+  #Flip to long format
+  
+  dataToUse = cbind(metadata_cum1yr_gee[c("cumout_gee_crude4", 
+                                          "cumout_gee_crude8", 
+                                          "cumout_gee_crude12")], 
+                    metadata_cum1yr_gee[confounders],
+                    alpha_div, 
+                    log_relative_abundance_crude)
+  
+
+  dataToUse$ID = rownames(dataToUse)
+  dataToUseLong = reshape(dataToUse, 
+          direction = "long",
+          varying = c("cumout_gee_crude4", 
+                      "cumout_gee_crude8", 
+                      "cumout_gee_crude12"),
+          v.names = "Disease",
+          idvar = c("ID"),
+          timevar = "Month",
+          times = c(4,8,12))
+  
+  dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+  dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+  IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+  
+
+  #Alpha Diversity Regression
+  #GLM Poisson Analysis
+  #Alpha Diversity
+  #4mo
+
+
+    metadata_cum1yr2 = metadata_cum1yr_gee
+    alpha_div2 = alpha_div
+    dataToUseLong2 = dataToUseLong
+    IDs2 = IDs
+    cumout_1yr_crude42 = cumout_1yr_crude4
+    cumout_1yr_crude82 = cumout_1yr_crude8
+    cumout_1yr_crude122 = cumout_1yr_crude12
+    cumout_1yr_crude2 = cumout_1yr_crude
+    
+    outmo = na.omit(cumout_1yr_crude42)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude42)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude42),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    print("4mo")
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+ 
+    up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alvec4 = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude42)),
+              sum(cumout_1yr_crude42, na.rm = TRUE))
+    
+    
+    #8mo
+    outmo = na.omit(cumout_1yr_crude82)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude82)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude82),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    print("8mo")
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+ 
+    up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alvec8 = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude82)),
+              sum(cumout_1yr_crude82, na.rm = TRUE))
+    
+    #12mo
+    outmo = na.omit(cumout_1yr_crude122)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude122)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude122),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    print("12mo")
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+    
+      up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alvec12 = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude122)),
+              sum(cumout_1yr_crude122, na.rm = TRUE))
+    
+    #Cumulative
+    outmo = na.omit(cumout_1yr_crude2)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude2)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude2),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    print("Cum")
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+    
+    up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alveccum = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude2)),
+              sum(cumout_1yr_crude2, na.rm = TRUE))
+    
+    #GEE
+    
+    
+    formula_adj = formula(paste("Disease ~ log2(alpha_div) ",
+                                paste(paste("+", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    
+    print("GEE")
+    aldiv_gee = geeglm(formula_adj,
+                    data = dataToUseLong2, 
+                    id = IDs2, 
+                    family = "poisson",
+                    corstr = "ar1")
+    
+  print(summary(aldiv_gee))
+    
+    
+    up95 = signif(exp(summary(aldiv_gee)$coefficients[2,1] + 1.96*summary(aldiv_gee)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_gee)$coefficients[2,1] - 1.96*summary(aldiv_gee)$coefficients[2,2]), digits = 3)
+
+    alvecgee = c(signif(exp(summary(aldiv_gee)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_gee)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(unique(IDs2)),
+             sum(dataToUseLong2$Disease))
+    
+    aldivtable = cbind(alvec4, alvec8, alvec12, alveccum, alvecgee)
+    rownames(aldivtable) = c("RR", "Pvalue", "95%CI", "N", "#out")
+    colnames(aldivtable) = c("4months", "8months", "12months", "Cumulative", "GEE")
+    alphatable_list = aldivtable
+
+  
+  #Taxon by taxon 
+
+
+    metadata_cum1yr2 = metadata_cum1yr_gee
+    dataToUseLong2 = dataToUseLong
+    IDs2 = IDs
+    cumout_1yr_crude42 = cumout_1yr_crude4
+    cumout_1yr_crude82 = cumout_1yr_crude8
+    cumout_1yr_crude122 = cumout_1yr_crude12
+    cumout_1yr_crude2 = cumout_1yr_crude
+    log_relative_abundance_crude2 = log_relative_abundance_crude
+    relative_abundance_crude2 = relative_abun_crude
+    
+    #4mo
+    
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude42)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude42),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude42),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvec4 = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    #8mo
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude82)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude82),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude82),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvec8 = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    #12mo
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude122)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude122),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude122),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvec12 = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    print("12m")
+    print(mhc_list[[2]])
+    
+    #Cumulative
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude2)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude2),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude2),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcveccum = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    
+    #Taxon by Taxon Regression 
+    #GEE
+    print("GEE")
+  
+    taxa_coef_crude = data.frame()
+    for (t in 1:ncol(relative_abundance_crude2)){
+      formula_adj = formula(paste("dataToUseLong2$Disease ~ ", 
+                                  paste("dataToUseLong2[[length(confounders)+1+",
+                                        as.character(t), 
+                                        "]]", sep = ""),
+                                paste(paste("+ dataToUseLong2$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+      geemod = geeglm(formula_adj,
+                   family="poisson", 
+                   #data=dataToUseLong2,
+                   id=IDs2,
+                   corstr="ar1")
+  
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(geemod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvecgee = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    print("GEE")
+    print(mhc_list[[2]])
+  
+    taxontable = cbind(mhcvec4, mhcvec8, mhcvec12, mhcveccum,mhcvecgee)
+    rownames(taxontable) = c("Positive", "Negative", "PosFDR", "NegFDR")
+    colnames(taxontable) = c("4months", "8months", "12months", "Cumulative","GEE")
+    taxontable_list = taxontable
+
+  
+  
+  return(list(alphatable_list, taxontable_list))
+  
+}
+
+
+
+
+all_analysis_function_1yrcum_gee_adj_strat = function(data_16s,
+                                 metadata,
+                                 outcomes,
+                                 confounders,
+                                 stratifiers){
+  #data_16s = stool_16s_genus_6w
+  #metadata = metadata_6w_impute
+  #outcomes = upResOutRxMed
+  #confounders = conf_16s_6ws
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+      
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      df_na[outcomes4812[[i]]] <- lapply(df_na[outcomes4812[[i]]] , factor)
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.numeric)
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 0.5)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr )
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+
+  #Stratify
+  metadata_cum1yr_gee_split <- split(metadata_cum1yr_gee,
+                                 metadata_cum1yr_gee[stratifiers])
+  alpha_div_split <- split(alpha_div, metadata_cum1yr_gee[stratifiers])
+  log_relative_abundance_crude_split <- split(log_relative_abundance_crude,
+                                              metadata_cum1yr_gee[stratifiers])
+  relative_abun_crude_split = split(relative_abun_crude,
+                                    metadata_cum1yr_gee[stratifiers])
+  
+  cumout_1yr_crude_split = split(cumout_1yr_crude,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude4_split = split(cumout_1yr_crude4,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude8_split = split(cumout_1yr_crude8,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude12_split = split(cumout_1yr_crude12,
+                                 metadata_cum1yr_gee[stratifiers])
+  
+  
+  #Flip to long format
+  
+  longdata_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    dataToUse = cbind(metadata_cum1yr_gee_split[[i]][c("cumout_gee_crude4", 
+                                            "cumout_gee_crude8", 
+                                            "cumout_gee_crude12")], 
+                      metadata_cum1yr_gee_split[[i]][confounders],
+                      alpha_div_split[[i]], 
+                      log_relative_abundance_crude_split[[i]])
+    
+    colnames(dataToUse)[length(confounders)+4]  = "alpha_div"
+    dataToUse$ID = rownames(dataToUse)
+    dataToUseLong = reshape(dataToUse, 
+            direction = "long",
+            varying = c("cumout_gee_crude4", 
+                        "cumout_gee_crude8", 
+                        "cumout_gee_crude12"),
+            v.names = "Disease",
+            idvar = c("ID"),
+            timevar = "Month",
+            times = c(4,8,12))
+    
+    dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+    dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+    IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+    longdata_list[[i]] = list(dataToUseLong = dataToUseLong, 
+                              IDs = IDs)
+    
+  }
+  
+
+  #Alpha Diversity Regression
+  #GLM Poisson Analysis
+  #Alpha Diversity
+  #4mo
+  alphatable_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    metadata_cum1yr2 = metadata_cum1yr_gee_split[[i]]
+    alpha_div2 = alpha_div_split[[i]]
+    dataToUseLong2 = longdata_list[[i]][[1]]
+    IDs2 = longdata_list[[i]][[2]]
+    cumout_1yr_crude42 = cumout_1yr_crude4_split[[i]]
+    cumout_1yr_crude82 = cumout_1yr_crude8_split[[i]]
+    cumout_1yr_crude122 = cumout_1yr_crude12_split[[i]]
+    cumout_1yr_crude2 = cumout_1yr_crude_split[[i]]
+    
+    outmo = na.omit(cumout_1yr_crude42)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude42)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude42),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+ 
+    up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alvec4 = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude42)),
+              sum(cumout_1yr_crude42, na.rm = TRUE))
+    
+    
+    #8mo
+    outmo = na.omit(cumout_1yr_crude82)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude82)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude82),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+ 
+    up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alvec8 = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude82)),
+              sum(cumout_1yr_crude82, na.rm = TRUE))
+    
+    #12mo
+    outmo = na.omit(cumout_1yr_crude122)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude122)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude122),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+    
+      up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alvec12 = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude122)),
+              sum(cumout_1yr_crude122, na.rm = TRUE))
+    
+    #Cumulative
+    outmo = na.omit(cumout_1yr_crude2)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude2)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude2),]
+    
+    formula_adj = formula(paste("outmo ~ log2(alphmo) ",
+                                paste(paste("+ metadata_cum1yrmo$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    
+    aldiv_pois = glm(formula_adj,
+                    family = "poisson")
+    
+    up95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] + 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_pois)$coefficients[2,1] - 1.96*summary(aldiv_pois)$coefficients[2,2]), digits = 3)
+
+  
+    alveccum = c(signif(exp(summary(aldiv_pois)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_pois)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(na.omit(cumout_1yr_crude2)),
+              sum(cumout_1yr_crude2, na.rm = TRUE))
+    
+    #GEE
+    
+    
+    formula_adj = formula(paste("Disease ~ log2(alpha_div) ",
+                                paste(paste("+", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    
+    print("GEE")
+    aldiv_gee = geeglm(formula_adj,
+                    data = dataToUseLong2, 
+                    id = IDs2, 
+                    family = "poisson",
+                    corstr = "ar1")
+    
+    print(summary(aldiv_gee))
+    
+    
+    up95 = signif(exp(summary(aldiv_gee)$coefficients[2,1] + 1.96*summary(aldiv_gee)$coefficients[2,2]), digits = 3)
+    lo95 = signif(exp(summary(aldiv_gee)$coefficients[2,1] - 1.96*summary(aldiv_gee)$coefficients[2,2]), digits = 3)
+
+    alvecgee = c(signif(exp(summary(aldiv_gee)$coefficients[2,1]), digits = 3),
+              signif(summary(aldiv_gee)$coefficients[2,4],digits=3),
+              paste("(", as.character(lo95),",",as.character(up95), ")", sep = ""),
+              length(unique(IDs2)),
+             sum(dataToUseLong2$Disease))
+    
+    aldivtable = cbind(alvec4, alvec8, alvec12, alveccum, alvecgee)
+    rownames(aldivtable) = c("RR", "Pvalue", "95%CI", "N", "#out")
+    colnames(aldivtable) = c("4months", "8months", "12months", "Cumulative", "GEE")
+    alphatable_list[[i]] = aldivtable
+    
+  }
+  
+  #Taxon by taxon 
+
+  taxontable_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    metadata_cum1yr2 = metadata_cum1yr_gee_split[[i]]
+    dataToUseLong2 = longdata_list[[i]][[1]]
+    IDs2 = longdata_list[[i]][[2]]
+    cumout_1yr_crude42 = cumout_1yr_crude4_split[[i]]
+    cumout_1yr_crude82 = cumout_1yr_crude8_split[[i]]
+    cumout_1yr_crude122 = cumout_1yr_crude12_split[[i]]
+    cumout_1yr_crude2 = cumout_1yr_crude_split[[i]]
+    log_relative_abundance_crude2 = log_relative_abundance_crude_split[[i]]
+    relative_abundance_crude2 = relative_abun_crude_split[[i]]
+    
+    #4mo
+    
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude42)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude42),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude42),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvec4 = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    #8mo
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude82)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude82),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude82),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvec8 = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    #12mo
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude122)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude122),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude122),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvec12 = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    #Cumulative
+    taxa_coef_crude = data.frame()
+    outmo = na.omit(cumout_1yr_crude2)
+    raadj = log_relative_abundance_crude2[!is.na(cumout_1yr_crude2),]
+    dfadj = metadata_cum1yr2[!is.na(cumout_1yr_crude2),]
+  
+    for (t in 1:ncol(log_relative_abundance_crude2)){
+      formula_adj = formula(paste("outmo ~ ", 
+                                  paste("raadj[,",
+                                        as.character(t), 
+                                        "]", sep = ""),
+                                  paste(paste("+ dfadj$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      glmmod = glm( formula_adj, 
+                   family = "quasipoisson")
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(glmmod)$coefficients[2,])
+    }
+    
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abun_crude)
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcveccum = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+    
+    
+    #Taxon by Taxon Regression 
+    #GEE
+    print("GEE")
+    taxa_coef_crude = data.frame()
+    for (t in 1:ncol(relative_abundance_crude2)){
+      formula_adj = formula(paste("dataToUseLong2$Disease ~ ", 
+                                  paste("dataToUseLong2[[length(confounders)+1+",
+                                        as.character(t), 
+                                        "]]", sep = ""),
+                                paste(paste("+ dataToUseLong2$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+      geemod = geeglm(formula_adj,
+                   family="poisson", 
+                   #data=dataToUseLong2,
+                   id=IDs2,
+                   corstr="ar1")
+  
+      taxa_coef_crude = rbind(taxa_coef_crude, summary(geemod)$coefficients[2,])
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                        rel_abun = log_relative_abundance_crude2)
+    
+    mhcvecgee = c(paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[1]])[which(mhc_list[[1]]$Estimate<0)],
+                     collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate>0)], 
+                   collapse = ", \n"),
+               paste(rownames(mhc_list[[2]])[which(mhc_list[[2]]$Estimate<0)],
+                     collapse = ", \n"))
+  
+    taxontable = cbind(mhcvec4, mhcvec8, mhcvec12, mhcveccum,mhcvecgee)
+    rownames(taxontable) = c("Positive", "Negative", "PosFDR", "NegFDR")
+    colnames(taxontable) = c("4months", "8months", "12months", "Cumulative","GEE")
+    taxontable_list[[i]] = taxontable
+    }
+  
+  
+  return(list(alphatable_list, taxontable_list))
+  
+}
+
+all_analysis_function_1yrcum_gee_adj_strat_ss = function(data_16s,
+                                 metadata,
+                                 outcomes,
+                                 confounders,
+                                 stratifiers){
+  #data_16s = stool_16s_genus_6w
+  #metadata = metadata_6w_impute
+  #outcomes = upResOutRxMed
+  #confounders = conf_16s_6ws
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+      
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      df_na[outcomes4812[[i]]] <- lapply(df_na[outcomes4812[[i]]] , factor)
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.numeric)
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 0.5)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr )
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+
+  #Stratify
+  metadata_cum1yr_gee_split <- split(metadata_cum1yr_gee,
+                                 metadata_cum1yr_gee[stratifiers])
+  alpha_div_split <- split(alpha_div, metadata_cum1yr_gee[stratifiers])
+  log_relative_abundance_crude_split <- split(log_relative_abundance_crude,
+                                              metadata_cum1yr_gee[stratifiers])
+  relative_abun_crude_split = split(relative_abun_crude,
+                                    metadata_cum1yr_gee[stratifiers])
+  
+  cumout_1yr_crude_split = split(cumout_1yr_crude,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude4_split = split(cumout_1yr_crude4,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude8_split = split(cumout_1yr_crude8,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude12_split = split(cumout_1yr_crude12,
+                                 metadata_cum1yr_gee[stratifiers])
+  
+  
+  #Flip to long format
+  
+  longdata_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    dataToUse = cbind(metadata_cum1yr_gee_split[[i]][c("cumout_gee_crude4", 
+                                            "cumout_gee_crude8", 
+                                            "cumout_gee_crude12")], 
+                      metadata_cum1yr_gee_split[[i]][confounders],
+                      alpha_div_split[[i]], 
+                      log_relative_abundance_crude_split[[i]])
+    
+    colnames(dataToUse)[length(confounders)+4]  = "alpha_div"
+    dataToUse$ID = rownames(dataToUse)
+    dataToUseLong = reshape(dataToUse, 
+            direction = "long",
+            varying = c("cumout_gee_crude4", 
+                        "cumout_gee_crude8", 
+                        "cumout_gee_crude12"),
+            v.names = "Disease",
+            idvar = c("ID"),
+            timevar = "Month",
+            times = c(4,8,12))
+    
+    dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+    dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+    IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+    longdata_list[[i]] = list(dataToUseLong = dataToUseLong, 
+                              IDs = IDs)
+    
+  }
+  
+
+  #Alpha Diversity Regression
+  #GLM Poisson Analysis
+  #Alpha Diversity
+  #4mo
+  alphatable_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    metadata_cum1yr2 = metadata_cum1yr_gee_split[[i]]
+    alpha_div2 = alpha_div_split[[i]]
+    dataToUseLong2 = longdata_list[[i]][[1]]
+    IDs2 = longdata_list[[i]][[2]]
+    cumout_1yr_crude42 = cumout_1yr_crude4_split[[i]]
+    cumout_1yr_crude82 = cumout_1yr_crude8_split[[i]]
+    cumout_1yr_crude122 = cumout_1yr_crude12_split[[i]]
+    cumout_1yr_crude2 = cumout_1yr_crude_split[[i]]
+    
+    outmo = na.omit(cumout_1yr_crude42)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude42)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude42),]
+    
+    
+  
+    alvec4 = c(length(na.omit(cumout_1yr_crude42)),
+              sum(cumout_1yr_crude42, na.rm = TRUE))
+    
+    
+    #8mo
+    outmo = na.omit(cumout_1yr_crude82)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude82)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude82),]
+    
+    alvec8 = c(length(na.omit(cumout_1yr_crude82)),
+              sum(cumout_1yr_crude82, na.rm = TRUE))
+    
+    #12mo
+    outmo = na.omit(cumout_1yr_crude122)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude122)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude122),]
+
+  
+    alvec12 = c(length(na.omit(cumout_1yr_crude122)),
+              sum(cumout_1yr_crude122, na.rm = TRUE))
+    
+    #Cumulative
+    outmo = na.omit(cumout_1yr_crude2)
+    alphmo = alpha_div2[!is.na(cumout_1yr_crude2)]
+    metadata_cum1yrmo = metadata_cum1yr2[!is.na(cumout_1yr_crude2),]
+    
+    
+    alveccum = c(length(na.omit(cumout_1yr_crude2)),
+              sum(cumout_1yr_crude2, na.rm = TRUE))
+    
+    #GEE
+    
+    
+
+    alvecgee = c(length(unique(IDs2)),
+             sum(dataToUseLong2$Disease))
+    
+    aldivtable = cbind(alvec4, alvec8, alvec12, alveccum, alvecgee)
+    rownames(aldivtable) = c("N", "#out")
+    colnames(aldivtable) = c("4months", "8months", "12months", "Cumulative", "GEE")
+    alphatable_list[[i]] = aldivtable
+    
+  }
+  
+  
+  return(list(alphatable_list))
+  
+}
+
+
+
+#Do MHC
+mhc_taxonregression = function(result_vals, rel_abun){
+  #P-value without any MHC
+  nomhc = result_vals[which(result_vals$"P-value"<0.05),]
+  #Select Bonferoni and BH adjusted P-value
+  #Get Eigenvalue
+  cor_mat = cor(rel_abun)
+  eigen_vals = eigen(cor_mat)$values
+  opteigen = get_eigen_opt(eigen_vals)
+  #Bonferroni-Corrected
+  bonp = 0.05/opteigen
+  bonf = result_vals[which(result_vals$"P-value"<bonp),]
+  #FDR-Corrected
+  sorted_p = sort(result_vals$"P-value")
+  sorted_bhp = 0.1/(seq(from = opteigen, to = 1, length.out = length(eigen_vals)))
+  ps = order(result_vals$"P-value")[which(sorted_p<=sorted_bhp)]
+  fdr = result_vals[ps,]
+  print(kable(nomhc, caption = "No MHC"))
+  print(kable(bonf, caption = "Bonferroni"))
+  print(kable(fdr, caption = "FDR"))
+}
+
+
+mhc_taxonregression2 = function(result_vals, rel_abun){
+  #P-value without any MHC
+  nomhc = result_vals[which(result_vals$"P-value"<0.05),]
+  #Select Bonferoni and BH adjusted P-value
+  #Get Eigenvalue
+  cor_mat = cor(rel_abun)
+  eigen_vals = eigen(cor_mat)$values
+  opteigen = get_eigen_opt(eigen_vals)
+  #FDR-Corrected
+  sorted_p = sort(result_vals$"P-value")
+  sorted_bhp = 0.1/(seq(from = opteigen, to = 1, length.out = length(eigen_vals)))
+  ps = order(result_vals$"P-value")[which(sorted_p<=sorted_bhp)]
+  fdr = result_vals[ps,]
+  #print(kable(nomhc, caption = "No MHC"))
+  #print(kable(fdr, caption = "FDR"))
+  return(list(nomhc, fdr))
+}
+
+```
+
+
+#6w
+##RxMed 
+###Upper RTI {.tabset}
+
+####Adjusted
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 #outcomes = c("UpResRxMed4mo", 
+                                 #             "UpResRxMed8mo", 
+                                 #             "UpResRxMed12mo"),
+                                 outcomes =  upResOutRxMed, 
+                                 confounders = conf_16s_6w,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]], caption = "Alpha Diversity")
+
+pander::pander(glm_poisson_results[[2]], caption = "Taxon Regression")
+
+```
+
+####Stratified
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj_strat(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes =  upResOutRxMed, 
+                                 confounders = conf_16s_6ws,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]][[1]], caption = "Alpha Diversity: Vaginal")
+kable(glm_poisson_results[[1]][[2]], caption = "Alpha Diversity: Caesarian")
+
+pander::pander(glm_poisson_results[[2]][[1]], caption = "Taxon Regression: Vaginal")
+pander::pander(glm_poisson_results[[2]][[2]], caption = "Taxon Regression: Caesarian")
+```
+
+
+###Lower RTI {.tabset}
+
+####Adjusted
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes =  loResOutRxMed, 
+                                 confounders = conf_16s_6w,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]], caption = "Alpha Diversity")
+
+pander::pander(glm_poisson_results[[2]], caption = "Taxon Regression")
+
+```
+
+####Stratified
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj_strat(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes =  loResOutRxMed, 
+                                 confounders = conf_16s_6ws,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]][[1]], caption = "Alpha Diversity: Vaginal")
+kable(glm_poisson_results[[1]][[2]], caption = "Alpha Diversity: Caesarian")
+
+pander::pander(glm_poisson_results[[2]][[1]], caption = "Taxon Regression: Vaginal")
+pander::pander(glm_poisson_results[[2]][[2]], caption = "Taxon Regression: Caesarian")
+```
+
+
+###ResSym {.tabset}
+
+####Adjusted
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes =  ressymOutRxMed, 
+                                 confounders = conf_16s_6w,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]], caption = "Alpha Diversity")
+
+pander::pander(glm_poisson_results[[2]], caption = "Taxon Regression")
+
+```
+
+####Stratified
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj_strat(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes =  ressymOutRxMed,
+                                 
+                                 confounders = conf_16s_6ws,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]][[1]], caption = "Alpha Diversity: Vaginal")
+kable(glm_poisson_results[[1]][[2]], caption = "Alpha Diversity: Caesarian")
+
+pander::pander(glm_poisson_results[[2]][[1]], caption = "Taxon Regression: Vaginal")
+pander::pander(glm_poisson_results[[2]][[2]], caption = "Taxon Regression: Caesarian")
+```
+
+
+
+###Wheeze {.tabset}
+
+####Adjusted
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes = c("I4WheezeRxMed", 
+                                              "I8WheezeRxMed", "I12WheezeRxMed"),
+                                 confounders = conf_16s_6w,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]], caption = "Alpha Diversity")
+
+pander::pander(glm_poisson_results[[2]], caption = "Taxon Regression")
+
+```
+
+####Stratified
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj_strat(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes = c("I4WheezeRxMed", 
+                                              "I8WheezeRxMed", "I12WheezeRxMed"),
+                                 
+                                 confounders = conf_16s_6ws,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]][[1]], caption = "Alpha Diversity: Vaginal")
+kable(glm_poisson_results[[1]][[2]], caption = "Alpha Diversity: Caesarian")
+
+pander::pander(glm_poisson_results[[2]][[1]], caption = "Taxon Regression: Vaginal")
+pander::pander(glm_poisson_results[[2]][[2]], caption = "Taxon Regression: Caesarian")
+```
+
+
+###Fever {.tabset}
+
+####Adjusted
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes = c("I4FvrRxMed", 
+                                              "I8FvrRxMed", "I12FvrRxMed"),
+                                 confounders = conf_16s_6w,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]], caption = "Alpha Diversity")
+
+pander::pander(glm_poisson_results[[2]], caption = "Taxon Regression")
+
+```
+
+####Stratified
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj_strat(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes = c("I4FvrRxMed", "I8FvrRxMed",
+                                              "I12FvrRxMed"),
+                                 
+                                 confounders = conf_16s_6ws,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]][[1]], caption = "Alpha Diversity: Vaginal")
+kable(glm_poisson_results[[1]][[2]], caption = "Alpha Diversity: Caesarian")
+
+pander::pander(glm_poisson_results[[2]][[1]], caption = "Taxon Regression: Vaginal")
+pander::pander(glm_poisson_results[[2]][[2]], caption = "Taxon Regression: Caesarian")
+```
+
+
+
+##Doctor
+
+###Diarrhea {.tabset}
+
+####Adjusted
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes = c("I4DiarrheaDoc", "I8DiarrheaDoc",
+                                              "I12DiarrheaDoc"),
+                                 confounders = conf_16s_6w,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]], caption = "Alpha Diversity")
+
+pander::pander(glm_poisson_results[[2]], caption = "Taxon Regression")
+
+```
+
+####Stratified
+```{r, echo=FALSE}
+glm_poisson_results = all_analysis_function_1yrcum_gee_adj_strat(data_16s = stool_16s_genus_6w,
+                                 metadata = metadata_6w_impute,
+                                 outcomes = c("I4DiarrheaDoc", "I8DiarrheaDoc",
+                                              "I12DiarrheaDoc"),
+                                 
+                                 confounders = conf_16s_6ws,
+                                 stratifiers = strat_16s)
+
+kable(glm_poisson_results[[1]][[1]], caption = "Alpha Diversity: Vaginal")
+kable(glm_poisson_results[[1]][[2]], caption = "Alpha Diversity: Caesarian")
+
+pander::pander(glm_poisson_results[[2]][[1]], caption = "Taxon Regression: Vaginal")
+pander::pander(glm_poisson_results[[2]][[2]], caption = "Taxon Regression: Caesarian")
+```
+
+
+#Metagenomics Species GEE
+```{r}
+library(knitr)
+library(geepack)#
+library(vegan)#
+library(ade4)#
+library(ggplot2)
+library(compositions)#
+library(factoextra)#
+library(mice)#
+
+
+species_level_metagen_6w_0omit_2 = species_level_metagen_6w_0omit[,which(metagen2_sp_kingdoms_6w=="Bacteria")]
+
+species_level_metagen_12m_0omit_2 = species_level_metagen_12m_0omit[,which(metagen2_sp_kingdoms_12m=="Bacteria")]
+
+
+get_eigen_opt = function(evals){
+  i = 1
+  pervar = 0
+  sumvar = c()
+  while(pervar < 0.8){
+    pervar = sum(evals[1:i])/sum(evals[1:length(evals)])
+    sumvar = c(sumvar,pervar)
+    i = i+1
+  }
+  return(i-1)
+}
+
+mhc_taxonregression = function(result_vals, rel_abun){
+  #P-value without any MHC
+  nomhc = result_vals[which(result_vals$"P-value"<0.05),]
+  #Select Bonferoni and BH adjusted P-value
+  #Get Eigenvalue
+  cor_mat = cor(rel_abun)
+  eigen_vals = eigen(cor_mat)$values
+  opteigen = get_eigen_opt(eigen_vals)
+  #Bonferroni-Corrected
+  bonp = 0.05/opteigen
+  bonf = result_vals[which(result_vals$"P-value"<bonp),]
+  #FDR-Corrected
+  sorted_p = sort(result_vals$"P-value")
+  sorted_bhp = 0.1/(seq(from = opteigen, to = 1, length.out = length(eigen_vals)))
+  ps = order(result_vals$"P-value")[which(sorted_p<=sorted_bhp)]
+  fdr = result_vals[ps,]
+  print(kable(nomhc, caption = "No MHC"))
+  print(kable(bonf, caption = "Bonferroni"))
+  print(kable(fdr, caption = "FDR"))
+}
+
+
+mhc_taxonregression2 = function(result_vals, rel_abun){
+  #P-value without any MHC
+  nomhc = result_vals[which(result_vals$"P-value"<0.05),]
+  #Select Bonferoni and BH adjusted P-value
+  #Get Eigenvalue
+  cor_mat = cor(rel_abun)
+  eigen_vals = eigen(cor_mat)$values
+  opteigen = get_eigen_opt(eigen_vals)
+  #FDR-Corrected
+  sorted_p = sort(result_vals$"P-value")
+  sorted_bhp = 0.1/(seq(from = opteigen, to = 1, length.out = length(eigen_vals)))
+  ps = order(result_vals$"P-value")[which(sorted_p<=sorted_bhp)]
+  fdr = result_vals[ps,]
+  #print(kable(nomhc, caption = "No MHC"))
+  #print(kable(fdr, caption = "FDR"))
+  return(list(nomhc, fdr))
+}
+
+
+
+#RxMed
+outcomesRxMed_4mo = c("UpResRxMed4mo", "LoResRxMed4mo", "ResSymRxMed4mo", 
+                      "I4FvrRxMed")
+outcomesRxMed_8mo = c("UpResRxMed8mo", "LoResRxMed8mo", "ResSymRxMed8mo", 
+                      "I8FvrRxMed")
+outcomesRxMed_12mo = c("UpResRxMed12mo", "LoResRxMed12mo", "ResSymRxMed12mo", 
+                       "I12FvrRxMed")
+
+outcomesRxMed_al_4mo = c("I4EczemaRxMed")
+outcomesRxMed_al_8mo = c("I8EczemaRxMed")
+outcomesRxMed_al_12mo = c("I12EczemaRxMed")
+
+#Counts
+
+##RxMed
+outcomesRxMed_gee = c(upResOutRxMed, loResOutRxMed, ressymOutRxMed,
+                      "I4FvrRxMed",
+                      "I8FvrRxMed", 
+                      "I12FvrRxMed")
+
+
+
+
+
+
+
+all_analysis_function_1yrcum_gee_adj = function(data_16s,
+                                                metadata,
+                                                outcomes,
+                                                confounders,
+                                                stratifiers){
+  #data_16s = species_level_metagen_6w_0omit_2
+  #metadata = metadata_6w_metaphlan_impute
+  #metadata = metadata_6w_metaphlan
+  #outcomes = upResOutRxMed
+  #confounders = conf_16s_6w
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+  
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+    
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      df_na[outcomes4812[[i]]] <- lapply(df_na[outcomes4812[[i]]] , factor)
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE, remove.collinear=FALSE, remove.constant = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.numeric)
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+  
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 5e-20)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr)
+  
+  
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+  
+  
+  #Kmeans Clusters
+  set.seed(1234)
+  la = fviz_nbclust(log_relative_abundance_crude, kmeans, method = "silhouette")
+  la2 = as.numeric(la$data$clusters[which.max(la$data$y)])
+  km <- kmeans(log_relative_abundance_crude, la2)
+  kmcluster = km$cluster
+  
+  #Flip to long format
+  
+  dataToUse = cbind(metadata_cum1yr_gee[c("cumout_gee_crude4", 
+                                          "cumout_gee_crude8", 
+                                          "cumout_gee_crude12")], 
+                    metadata_cum1yr_gee[confounders],
+                    alpha_div, 
+                    log_relative_abundance_crude,
+                    kmcluster)
+  
+  
+  dataToUse$ID = rownames(dataToUse)
+  dataToUseLong = reshape(dataToUse, 
+                          direction = "long",
+                          varying = c("cumout_gee_crude4", 
+                                      "cumout_gee_crude8", 
+                                      "cumout_gee_crude12"),
+                          v.names = "Disease",
+                          idvar = c("ID"),
+                          timevar = "Month",
+                          times = c(4,8,12))
+  
+  dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+  dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+  IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+  
+  
+  
+  #Taxon by taxon 
+  metadata_cum1yr2 = metadata_cum1yr_gee
+  dataToUseLong2 = dataToUseLong
+  IDs2 = IDs
+  cumout_1yr_crude42 = cumout_1yr_crude4
+  cumout_1yr_crude82 = cumout_1yr_crude8
+  cumout_1yr_crude122 = cumout_1yr_crude12
+  cumout_1yr_crude2 = cumout_1yr_crude
+  log_relative_abundance_crude2 = log_relative_abundance_crude
+  relative_abundance_crude2 = relative_abun_crude
+  
+  
+  #GEE all
+  #GEE
+  print("gee")
+  taxa_coef_crude = data.frame()
+  for (t in 1:ncol(relative_abundance_crude2)){
+    #for(t in mostabun){
+    formula_adj = formula(paste("dataToUseLong2$Disease ~ ", 
+                                paste("dataToUseLong2[[length(confounders)+1+",
+                                      as.character(t), 
+                                      "]]", sep = ""),
+                                paste(paste("+ dataToUseLong2$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    geemod = try(geeglm(formula_adj,
+                        family="poisson", 
+                        #data=dataToUseLong2,
+                        id=IDs2,
+                        corstr="ar1"))
+    
+    if(is(geemod, "try-error")){
+      taxa_coef_crude = rbind(taxa_coef_crude,
+                              c(0,0,0,0.999999))
+      
+    } else {
+      if(summary(geemod)$coef[2,4] <0.05){
+        #print(summary(geemod))
+      }
+      taxa_coef_crude = rbind(taxa_coef_crude,
+                              summary(geemod)$coefficients[2,])
+    }
+    
+  }
+  colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+  rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+  
+  if(length(which(taxa_coef_crude$Estimate==0))==0){
+    taxa_coef_crude2 = taxa_coef_crude
+    rac = relative_abundance_crude2
+  }else{
+    taxa_coef_crude2 = taxa_coef_crude[-which(taxa_coef_crude$Estimate==0),]
+    relative_abundance_crude3 = relative_abundance_crude2
+    rac = relative_abundance_crude3[,-which(taxa_coef_crude$Estimate==0)]
+  }
+  mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                                  rel_abun = rac)
+  mhc_list_allsp= mhc_list
+  taxa_coef_crude2_allsp = taxa_coef_crude2
+  
+  return(list(taxa_coef_crude2_allsp, mhc_list_allsp, dataToUseLong2))
+}
+
+
+
+
+
+
+all_analysis_function_1yrcum_gee_adj_strat = function(data_16s,
+                                                      metadata,
+                                                      outcomes,
+                                                      confounders,
+                                                      stratifiers){
+  #data_16s = species_level_metagen_6w_0omit_2
+  #metadata = metadata_6w_metaphlan_impute
+  #outcomes = c("UpResRxMed4mo", "UpResRxMed8mo", "UpResRxMed12mo")
+  #confounders = conf_16s_6ws
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+  
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+    
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      df_na[outcomes4812[[i]]] <- lapply(df_na[outcomes4812[[i]]] , factor)
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE, remove.collinear=FALSE, remove.constant = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.numeric)
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+  
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 5e-20)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr )
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+  relative_abun_crude = as.data.frame(relative_abun_crude)
+  log_relative_abundance_crude = as.data.frame(log_relative_abundance_crude)
+  
+  #Kmeans Clusters
+  set.seed(1234)
+  la = fviz_nbclust(log_relative_abundance_crude, kmeans, method = "silhouette")
+  la2 = as.numeric(la$data$clusters[which.max(la$data$y)])
+  km <- kmeans(log_relative_abundance_crude, la2)
+  kmcluster = km$cluster
+  
+  #Stratify
+  metadata_cum1yr_gee_split <- split(metadata_cum1yr_gee,
+                                     metadata_cum1yr_gee[stratifiers])
+  alpha_div_split <- split(alpha_div, metadata_cum1yr_gee[stratifiers])
+  log_relative_abundance_crude_split <- split(log_relative_abundance_crude,
+                                              metadata_cum1yr_gee[stratifiers])
+  relative_abun_crude_split = split(relative_abun_crude,
+                                    metadata_cum1yr_gee[stratifiers])
+  
+  cumout_1yr_crude_split = split(cumout_1yr_crude,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude4_split = split(cumout_1yr_crude4,
+                                  metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude8_split = split(cumout_1yr_crude8,
+                                  metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude12_split = split(cumout_1yr_crude12,
+                                   metadata_cum1yr_gee[stratifiers])
+  
+  kmcluster_split = split(kmcluster, metadata_cum1yr_gee[stratifiers])
+  
+  #Flip to long format
+  
+  longdata_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    dataToUse = cbind(metadata_cum1yr_gee_split[[i]][c("cumout_gee_crude4", 
+                                                       "cumout_gee_crude8", 
+                                                       "cumout_gee_crude12")], 
+                      metadata_cum1yr_gee_split[[i]][confounders],
+                      alpha_div_split[[i]], 
+                      log_relative_abundance_crude_split[[i]],
+                      kmcluster_split[[i]])
+    
+    colnames(dataToUse)[length(confounders)+4]  = "alpha_div"
+    colnames(dataToUse)[ncol(dataToUse)] = "kmcluster"
+    dataToUse$ID = rownames(dataToUse)
+    dataToUseLong = reshape(dataToUse, 
+                            direction = "long",
+                            varying = c("cumout_gee_crude4", 
+                                        "cumout_gee_crude8", 
+                                        "cumout_gee_crude12"),
+                            v.names = "Disease",
+                            idvar = c("ID"),
+                            timevar = "Month",
+                            times = c(4,8,12))
+    
+    dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+    dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+    IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+    longdata_list[[i]] = list(dataToUseLong = dataToUseLong, 
+                              IDs = IDs)
+    
+  }
+  
+  
+  
+  #Taxon by Taxon Regression 
+  #GEE
+  
+  taxa_coef_crude2_allsp_list = list()
+  mhc_list_allsp_list = list() 
+  dataToUseLong2_list = list()
+  
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    metadata_cum1yr2 = metadata_cum1yr_gee_split[[i]]
+    dataToUseLong2 = longdata_list[[i]][[1]]
+    IDs2 = longdata_list[[i]][[2]]
+    cumout_1yr_crude2 = cumout_1yr_crude_split[[i]]
+    log_relative_abundance_crude2 = log_relative_abundance_crude_split[[i]]
+    relative_abundance_crude2 = relative_abun_crude_split[[i]]
+    #GEE all
+    #GEE
+    mostabun = order(colSums(relative_abundance_crude2), decreasing=TRUE)[1:20]
+    print("gee")
+    taxa_coef_crude = data.frame()
+    for (t in 1:ncol(relative_abundance_crude2)){
+      #for(t in mostabun){
+      formula_adj = formula(paste("dataToUseLong2$Disease ~ ", 
+                                  paste("dataToUseLong2[[length(confounders)+1+",
+                                        as.character(t), 
+                                        "]]", sep = ""),
+                                  paste(paste("+ dataToUseLong2$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      geemod = try(geeglm(formula_adj,
+                          family="poisson", 
+                          #data=dataToUseLong2,
+                          id=IDs2,
+                          corstr="ar1"))
+      
+      if(is(geemod, "try-error")){
+        taxa_coef_crude = rbind(taxa_coef_crude,
+                                c(0,0,0,0.999999))
+        
+      } else {
+        if(summary(geemod)$coef[2,4] <0.05){
+          #print(summary(geemod))
+        }
+        taxa_coef_crude = rbind(taxa_coef_crude,
+                                summary(geemod)$coefficients[2,])
+      }
+      
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    
+    if(length(which(taxa_coef_crude$Estimate==0))==0){
+      taxa_coef_crude2 = taxa_coef_crude
+      rac = relative_abundance_crude2
+    }else{
+      taxa_coef_crude2 = taxa_coef_crude[-which(taxa_coef_crude$Estimate==0),]
+      relative_abundance_crude3 = relative_abundance_crude2
+      rac = relative_abundance_crude3[,-which(taxa_coef_crude$Estimate==0)]
+    }
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                                    rel_abun = rac)
+    taxa_coef_crude2_allsp_list[[i]] = taxa_coef_crude2
+    mhc_list_allsp_list[[i]] = mhc_list
+    dataToUseLong2_list[[i]] = dataToUseLong2
+  }
+  
+  
+  return(list(taxa_coef_crude2_allsp_list, mhc_list_allsp_list, dataToUseLong2_list))
+  
+}
+
+
+
+
+
+
+all_analysis_function_1yrcum_gee_adj2 = function(data_16s,
+                                                metadata,
+                                                outcomes,
+                                                confounders,
+                                                stratifiers){
+  #data_16s = species_level_metagen_6w_0omit_2
+  #metadata = metadata_6w_metaphlan_impute
+  #outcomes = outcomesRxMed_gee
+  #confounders = conf_16s_6w
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+  
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+    
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      
+      zerosum = which(colSums(df_na, na.rm = TRUE)==0)
+      df_zero = df_na[,zerosum]
+      df_na = df_na[,-zerosum]
+      
+      df_na[outcomes4812[[i]][-zerosum]] <- lapply(df_na[outcomes4812[[i]][-zerosum]] , factor)
+      
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE, remove.collinear=FALSE, remove.constant = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.character)
+      df_comp = lapply(df_comp, as.numeric)
+      
+      df_zero <- replace(df_zero, is.na(df_zero), 0)
+      df_comp = cbind(df_comp, df_zero) 
+      colnames(df_comp) = c(outcomes4812[[i]][-zerosum], outcomes4812[[i]][zerosum])
+      
+      df_comp <- subset(df_comp, select=outcomes4812[[i]])
+      
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+  
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 5e-20)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr )
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+  
+  
+  #Kmeans Clusters
+  set.seed(1234)
+  la = fviz_nbclust(log_relative_abundance_crude, kmeans, method = "silhouette")
+  la2 = as.numeric(la$data$clusters[which.max(la$data$y)])
+  km <- kmeans(log_relative_abundance_crude, la2)
+  kmcluster = km$cluster
+  
+  #Flip to long format
+  
+  dataToUse = cbind(metadata_cum1yr_gee[c("cumout_gee_crude4", 
+                                          "cumout_gee_crude8", 
+                                          "cumout_gee_crude12")], 
+                    metadata_cum1yr_gee[confounders],
+                    alpha_div, 
+                    log_relative_abundance_crude,
+                    kmcluster)
+  
+  
+  dataToUse$ID = rownames(dataToUse)
+  dataToUseLong = reshape(dataToUse, 
+                          direction = "long",
+                          varying = c("cumout_gee_crude4", 
+                                      "cumout_gee_crude8", 
+                                      "cumout_gee_crude12"),
+                          v.names = "Disease",
+                          idvar = c("ID"),
+                          timevar = "Month",
+                          times = c(4,8,12))
+  
+  dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+  dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+  IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+  
+  
+  
+  #Taxon by taxon 
+  metadata_cum1yr2 = metadata_cum1yr_gee
+  dataToUseLong2 = dataToUseLong
+  IDs2 = IDs
+  cumout_1yr_crude42 = cumout_1yr_crude4
+  cumout_1yr_crude82 = cumout_1yr_crude8
+  cumout_1yr_crude122 = cumout_1yr_crude12
+  cumout_1yr_crude2 = cumout_1yr_crude
+  log_relative_abundance_crude2 = log_relative_abundance_crude
+  relative_abundance_crude2 = relative_abun_crude
+  
+  
+  #GEE all
+  #GEE
+  print("gee")
+  taxa_coef_crude = data.frame()
+  for (t in 1:ncol(relative_abundance_crude2)){
+    #for(t in mostabun){
+    formula_adj = formula(paste("dataToUseLong2$Disease ~ ", 
+                                paste("dataToUseLong2[[length(confounders)+1+",
+                                      as.character(t), 
+                                      "]]", sep = ""),
+                                paste(paste("+ dataToUseLong2$", 
+                                            confounders, sep = ""), 
+                                      collapse = "") ))
+    geemod = try(geeglm(formula_adj,
+                        family="poisson", 
+                        #data=dataToUseLong2,
+                        id=IDs2,
+                        corstr="ar1"))
+    
+    if(is(geemod, "try-error")){
+      taxa_coef_crude = rbind(taxa_coef_crude,
+                              c(0,0,0,0.999999))
+      
+    } else {
+      if(summary(geemod)$coef[2,4] <0.05){
+        #print(summary(geemod))
+      }
+      taxa_coef_crude = rbind(taxa_coef_crude,
+                              summary(geemod)$coefficients[2,])
+    }
+    
+  }
+  colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+  rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+  
+  if(length(which(taxa_coef_crude$Estimate==0))==0){
+    taxa_coef_crude2 = taxa_coef_crude
+    rac = relative_abundance_crude2
+  }else{
+    taxa_coef_crude2 = taxa_coef_crude[-which(taxa_coef_crude$Estimate==0),]
+    relative_abundance_crude3 = relative_abundance_crude2
+    rac = relative_abundance_crude3[,-which(taxa_coef_crude$Estimate==0)]
+  }
+  mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                                  rel_abun = rac)
+  mhc_list_allsp= mhc_list
+  taxa_coef_crude2_allsp = taxa_coef_crude2
+  
+  return(list(taxa_coef_crude2_allsp, mhc_list_allsp, dataToUseLong2))
+}
+
+
+
+
+
+
+all_analysis_function_1yrcum_gee_adj_strat2 = function(data_16s,
+                                                      metadata,
+                                                      outcomes,
+                                                      confounders,
+                                                      stratifiers){
+  #data_16s = species_level_metagen_6w_0omit_2
+  #metadata = metadata_6w_metaphlan_impute
+  #outcomes = c("UpResRxMed4mo", "UpResRxMed8mo", "UpResRxMed12mo")
+  #confounders = conf_16s_6ws
+  #stratifiers = strat_16s
+  
+  #Dataframe with complete outcome and exposure data
+  
+  outcomes4 = outcomes[grep("4",outcomes)]
+  outcomes8 = outcomes[grep("8",outcomes)]
+  outcomes12 = outcomes[grep("12",outcomes)]
+  
+  #Removes rows with all NA
+  metadata_testna = metadata
+  metadata_testna[outcomes][metadata_testna[outcomes] == 0] = 10
+  
+  
+  taxtable_cum1yr = data_16s[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  metadata_cum1yr = metadata[which(rowSums(metadata_testna[outcomes], na.rm = "TRUE")!=0),]
+  
+  #Find NAs in each time period
+  metadata_cum1yr_gee = metadata_cum1yr
+  metadata_cum1yrNA10 = metadata_cum1yr_gee
+  #Impute NAs
+  outcomes4812 = list(outcomes4, outcomes8, outcomes12)
+  
+  if(length(outcomes4812[[1]])==1){
+    
+    
+  }else{
+    for (i in c(1,2,3)){
+      metadata_cum1yrNA10[outcomes4812[[i]]][is.na(metadata_cum1yrNA10[outcomes4812[[i]]])] = 10
+      narow4 = which(rowSums(metadata_cum1yrNA10[outcomes4812[[i]]])==(10*length(outcomes4812[[i]])))
+      df_na = metadata_cum1yr_gee[outcomes4812[[i]]][-narow4,]
+      
+      zerosum = which(colSums(df_na, na.rm = TRUE)==0)
+      df_zero = df_na[,zerosum]
+      df_na = df_na[,-zerosum]
+      
+      df_na[outcomes4812[[i]][-zerosum]] <- lapply(df_na[outcomes4812[[i]][-zerosum]] , factor)
+      
+      tempData = mice(df_na,m=5,maxit=50,meth='pmm',seed=500, 
+                      ridge=0.001, print = FALSE, remove.collinear=FALSE, remove.constant = FALSE)
+      df_comp = complete(tempData,1)
+      rownames(df_comp) = rownames(df_na)
+      df_comp[which(is.na(df_comp), arr.ind = TRUE)] = 0
+      df_comp = lapply(df_comp, as.character)
+      df_comp = lapply(df_comp, as.numeric)
+      
+      df_zero <- replace(df_zero, is.na(df_zero), 0)
+      df_comp = cbind(df_comp, df_zero) 
+      colnames(df_comp) = c(outcomes4812[[i]][-zerosum], outcomes4812[[i]][zerosum])
+      
+      df_comp <- subset(df_comp, select=outcomes4812[[i]])
+      
+      metadata_cum1yr_gee[rownames(df_comp), outcomes4812[[i]]] = df_comp
+    }
+  }
+  
+  #Calculate cumulative total outcome over one year
+  cumout_1yr_crude = rowSums(metadata_cum1yr[outcomes], na.rm = "FALSE")
+  cumout_1yr_crude4 = rowSums(metadata_cum1yr[outcomes4], na.rm = "FALSE")
+  cumout_1yr_crude8 = rowSums(metadata_cum1yr[outcomes8], na.rm = "FALSE")
+  cumout_1yr_crude12 = rowSums(metadata_cum1yr[outcomes12], na.rm = "FALSE")
+  
+  #Total counts For GEE data
+  cumout_gee_crude = rowSums(metadata_cum1yr_gee[outcomes], na.rm = "FALSE")
+  cumout_gee_crude4 = rowSums(metadata_cum1yr_gee[outcomes4], na.rm = "FALSE")
+  cumout_gee_crude8 = rowSums(metadata_cum1yr_gee[outcomes8], na.rm = "FALSE")
+  cumout_gee_crude12 = rowSums(metadata_cum1yr_gee[outcomes12], na.rm = "FALSE")
+  
+  metadata_cum1yr_gee$cumout_gee_crude = cumout_gee_crude
+  metadata_cum1yr_gee$cumout_gee_crude4 = cumout_gee_crude4
+  metadata_cum1yr_gee$cumout_gee_crude8 = cumout_gee_crude8
+  metadata_cum1yr_gee$cumout_gee_crude12 = cumout_gee_crude12
+  
+  #Calculate Alpha Diversity
+  alpha_div = diversity(taxtable_cum1yr, index = "invsimpson")
+  #Calculate Relative Abundance
+  ##Convert to Presence/absence 
+  pa_test_1yr = ifelse(taxtable_cum1yr==0, 0,1)
+  ##Select taxa appearing in at least 10% of data
+  tenper_test_1yr = which(colSums(pa_test_1yr)/nrow(pa_test_1yr)*100 >= 10)
+  taxtable_10per_test_1yr = taxtable_cum1yr[,tenper_test_1yr]
+  #Replace 0 values
+  taxtable_10per_test_1yr <- replace(taxtable_10per_test_1yr, taxtable_10per_test_1yr == 0, 5e-20)
+  relative_abun_crude = taxtable_10per_test_1yr /rowSums(taxtable_10per_test_1yr )
+  #Center the data
+  log_relative_abundance_crude <- log2(relative_abun_crude)
+  relative_abun_crude = as.data.frame(relative_abun_crude)
+  log_relative_abundance_crude = as.data.frame(log_relative_abundance_crude)
+  
+  #Kmeans Clusters
+  set.seed(1234)
+  la = fviz_nbclust(log_relative_abundance_crude, kmeans, method = "silhouette")
+  la2 = as.numeric(la$data$clusters[which.max(la$data$y)])
+  km <- kmeans(log_relative_abundance_crude, la2)
+  kmcluster = km$cluster
+  
+  #Stratify
+  metadata_cum1yr_gee_split <- split(metadata_cum1yr_gee,
+                                     metadata_cum1yr_gee[stratifiers])
+  alpha_div_split <- split(alpha_div, metadata_cum1yr_gee[stratifiers])
+  log_relative_abundance_crude_split <- split(log_relative_abundance_crude,
+                                              metadata_cum1yr_gee[stratifiers])
+  relative_abun_crude_split = split(relative_abun_crude,
+                                    metadata_cum1yr_gee[stratifiers])
+  
+  cumout_1yr_crude_split = split(cumout_1yr_crude,
+                                 metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude4_split = split(cumout_1yr_crude4,
+                                  metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude8_split = split(cumout_1yr_crude8,
+                                  metadata_cum1yr_gee[stratifiers])
+  cumout_1yr_crude12_split = split(cumout_1yr_crude12,
+                                   metadata_cum1yr_gee[stratifiers])
+  
+  kmcluster_split = split(kmcluster, metadata_cum1yr_gee[stratifiers])
+  
+  #Flip to long format
+  
+  longdata_list = list()
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    dataToUse = cbind(metadata_cum1yr_gee_split[[i]][c("cumout_gee_crude4", 
+                                                       "cumout_gee_crude8", 
+                                                       "cumout_gee_crude12")], 
+                      metadata_cum1yr_gee_split[[i]][confounders],
+                      alpha_div_split[[i]], 
+                      log_relative_abundance_crude_split[[i]],
+                      kmcluster_split[[i]])
+    
+    colnames(dataToUse)[length(confounders)+4]  = "alpha_div"
+    colnames(dataToUse)[ncol(dataToUse)] = "kmcluster"
+    dataToUse$ID = rownames(dataToUse)
+    dataToUseLong = reshape(dataToUse, 
+                            direction = "long",
+                            varying = c("cumout_gee_crude4", 
+                                        "cumout_gee_crude8", 
+                                        "cumout_gee_crude12"),
+                            v.names = "Disease",
+                            idvar = c("ID"),
+                            timevar = "Month",
+                            times = c(4,8,12))
+    
+    dataToUseLong = dataToUseLong[order(dataToUseLong$ID),]
+    dataToUseLong = dataToUseLong[which(!is.na(dataToUseLong$Disease)),]
+    IDs = as.numeric(factor(dataToUseLong$ID, levels=unique(dataToUseLong$ID)))
+    longdata_list[[i]] = list(dataToUseLong = dataToUseLong, 
+                              IDs = IDs)
+    
+  }
+  
+  
+  
+  #Taxon by Taxon Regression 
+  #GEE
+  
+  taxa_coef_crude2_allsp_list = list()
+  mhc_list_allsp_list = list() 
+  dataToUseLong2_list = list()
+  
+  for (i in 1:length(metadata_cum1yr_gee_split)){
+    metadata_cum1yr2 = metadata_cum1yr_gee_split[[i]]
+    dataToUseLong2 = longdata_list[[i]][[1]]
+    IDs2 = longdata_list[[i]][[2]]
+    cumout_1yr_crude2 = cumout_1yr_crude_split[[i]]
+    log_relative_abundance_crude2 = log_relative_abundance_crude_split[[i]]
+    relative_abundance_crude2 = relative_abun_crude_split[[i]]
+    #GEE all
+    #GEE
+    mostabun = order(colSums(relative_abundance_crude2), decreasing=TRUE)[1:20]
+    print("gee")
+    taxa_coef_crude = data.frame()
+    for (t in 1:ncol(relative_abundance_crude2)){
+      #for(t in mostabun){
+      formula_adj = formula(paste("dataToUseLong2$Disease ~ ", 
+                                  paste("dataToUseLong2[[length(confounders)+1+",
+                                        as.character(t), 
+                                        "]]", sep = ""),
+                                  paste(paste("+ dataToUseLong2$", 
+                                              confounders, sep = ""), 
+                                        collapse = "") ))
+      geemod = try(geeglm(formula_adj,
+                          family="poisson", 
+                          #data=dataToUseLong2,
+                          id=IDs2,
+                          corstr="ar1"))
+      
+      if(is(geemod, "try-error")){
+        taxa_coef_crude = rbind(taxa_coef_crude,
+                                c(0,0,0,0.999999))
+        
+      } else {
+        if(summary(geemod)$coef[2,4] <0.05){
+          #print(summary(geemod))
+        }
+        taxa_coef_crude = rbind(taxa_coef_crude,
+                                summary(geemod)$coefficients[2,])
+      }
+      
+    }
+    colnames(taxa_coef_crude) = c("Estimate", "Std. Error", "z Value", "P-value")
+    rownames(taxa_coef_crude) = colnames(relative_abundance_crude2)
+    
+    if(length(which(taxa_coef_crude$Estimate==0))==0){
+      taxa_coef_crude2 = taxa_coef_crude
+      rac = relative_abundance_crude2
+    }else{
+      taxa_coef_crude2 = taxa_coef_crude[-which(taxa_coef_crude$Estimate==0),]
+      relative_abundance_crude3 = relative_abundance_crude2
+      rac = relative_abundance_crude3[,-which(taxa_coef_crude$Estimate==0)]
+    }
+    mhc_list = mhc_taxonregression2(result_vals = taxa_coef_crude,
+                                    rel_abun = rac)
+    taxa_coef_crude2_allsp_list[[i]] = taxa_coef_crude2
+    mhc_list_allsp_list[[i]] = mhc_list
+    dataToUseLong2_list[[i]] = dataToUseLong2
+  }
+  
+  
+  return(list(taxa_coef_crude2_allsp_list, mhc_list_allsp_list, dataToUseLong2_list))
+  
+}
+
+############################################################################################################
+
+
+
+
+#6w
+##RxMed 
+#All infections and symptoms
+glm_poisson_results_all = all_analysis_function_1yrcum_gee_adj2(data_16s = species_level_metagen_6w_0omit_2,
+                                                                metadata =  metadata_6w_metaphlan_impute,
+                                                                outcomes = outcomesRxMed_gee,
+                                                                confounders = conf_16s_6w,
+                                                                stratifiers = strat_16s)
+
+glm_poisson_results_v = all_analysis_function_1yrcum_gee_adj_strat2(data_16s = species_level_metagen_6w_0omit_2,
+                                                                         metadata =  metadata_6w_metaphlan_impute,
+                                                                         outcomes = outcomesRxMed_gee,
+                                                                         confounders = conf_16s_6ws,
+                                                                         stratifiers = strat_16s)
+
+
+
+
+###Upper RTI {.tabset}
+
+####Adjusted
+glm_poisson_results_urti = all_analysis_function_1yrcum_gee_adj(data_16s = species_level_metagen_6w_0omit_2,
+                                                                metadata = metadata_6w_metaphlan_impute,
+                                                                outcomes = upResOutRxMed,
+                                                                confounders = conf_16s_6w,
+                                                                stratifiers = strat_16s)
+
+
+
+####Stratified
+glm_poisson_results_urti_v = all_analysis_function_1yrcum_gee_adj_strat(data_16s = species_level_metagen_6w_0omit_2,
+                                                                        metadata = metadata_6w_metaphlan_impute,
+                                                                        outcomes = upResOutRxMed,
+                                                                        confounders = conf_16s_6ws,
+                                                                        stratifiers = strat_16s)
+
+
+
+###Lower RTI {.tabset}
+
+####Adjusted
+glm_poisson_results_lrti = all_analysis_function_1yrcum_gee_adj(data_16s = species_level_metagen_6w_0omit_2,
+                                                                metadata = metadata_6w_metaphlan_impute,
+                                                                outcomes = loResOutRxMed,
+                                                                confounders = conf_16s_6w,
+                                                                stratifiers = strat_16s)
+
+
+
+
+###ResSym {.tabset}
+
+####Adjusted
+glm_poisson_results_ressym = all_analysis_function_1yrcum_gee_adj(data_16s = species_level_metagen_6w_0omit_2,
+                                                                  metadata = metadata_6w_metaphlan_impute,
+                                                                  outcomes = ressymOutRxMed,
+                                                                  confounders = conf_16s_6w,
+                                                                  stratifiers = strat_16s)
+
+
+####Stratified
+glm_poisson_results_ressym_v = all_analysis_function_1yrcum_gee_adj_strat(data_16s = species_level_metagen_6w_0omit_2,
+                                                                          metadata = metadata_6w_metaphlan_impute,
+                                                                          outcomes = ressymOutRxMed,
+                                                                          confounders = conf_16s_6ws,
+                                                                          stratifiers = strat_16s)
+
+
+
+###Wheeze {.tabset}
+
+####Adjusted
+glm_poisson_results_wheeze = all_analysis_function_1yrcum_gee_adj(data_16s = species_level_metagen_6w_0omit_2,
+                                                                  metadata = metadata_6w_metaphlan_impute,
+                                                                  outcomes = c("I4WheezeRxMed", 
+                                                                               "I8WheezeRxMed", "I12WheezeRxMed"),
+                                                                  confounders = conf_16s_6w,
+                                                                  stratifiers = strat_16s)
+
+
+###Fever {.tabset}
+
+####Adjusted
+glm_poisson_results_fever = all_analysis_function_1yrcum_gee_adj(data_16s = species_level_metagen_6w_0omit_2,
+                                                                 metadata = metadata_6w_metaphlan_impute,
+                                                                 outcomes = c("I4FvrRxMed", 
+                                                                              "I8FvrRxMed", "I12FvrRxMed"),
+                                                                 confounders = conf_16s_6w,
+                                                                 stratifiers = strat_16s)
+
+
+
+#Diarrhea
+####Adjusted
+glm_poisson_results_diarrhea = all_analysis_function_1yrcum_gee_adj(data_16s = species_level_metagen_6w_0omit_2,
+                                                                    metadata = metadata_6w_metaphlan_impute,
+                                                                    outcomes = c("I4DiarrheaDoc", "I8DiarrheaDoc",
+                                                                                 "I12DiarrheaDoc"),
+                                                                    confounders = conf_16s_6w,
+                                                                    stratifiers = strat_16s)
+
+
+
+
+```
+
